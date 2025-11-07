@@ -549,39 +549,24 @@ async def parse_csv(file: UploadFile = File(...), import_type: str = Query(...),
     # Process rows
     preview = []
     
-    # Log available columns for debugging
-    if rows:
-        logging.info(f"Available columns: {list(rows[0].keys())}")
-    
     for row in rows:
         if import_type == 'account':
-            # Map columns flexibly - search for date column
-            date_raw = ''
-            for key in row.keys():
-                if 'fecha' in key.lower() and 'operac' in key.lower():
-                    date_raw = row[key]
-                    break
-            if not date_raw:
-                date_raw = row.get('fecha', '')
+            # Direct mapping with exact column names (after normalization)
+            # Try different variations of column names
+            date_raw = (row.get('fecha operacion') or 
+                       row.get('fecha operación') or 
+                       row.get('fecha_operacion') or 
+                       row.get('fechaoperacion') or
+                       row.get('fecha', ''))
             
-            # Search for concept column
-            concept = ''
-            for key in row.keys():
-                if 'concepto' in key.lower():
-                    concept = row[key]
-                    break
+            concept = (row.get('concepto') or 
+                      row.get('concepto movimiento') or
+                      row.get('descripcion') or '')
             
-            # Search for amount column
-            amount_str = '0'
-            for key in row.keys():
-                if 'importe' in key.lower() and 'eur' in key.lower():
-                    amount_str = row[key]
-                    break
-            if amount_str == '0':
-                for key in row.keys():
-                    if 'importe' in key.lower():
-                        amount_str = row[key]
-                        break
+            amount_str = (row.get('importe eur') or 
+                         row.get('importe_eur') or
+                         row.get('importeeur') or
+                         row.get('importe', '0'))
             
             date = normalize_date(date_raw)
             
