@@ -14,6 +14,7 @@ import io
 import csv
 from openpyxl import Workbook, load_workbook
 from openpyxl.styles import Font, Alignment, PatternFill, numbers
+import xlrd
 from decimal import Decimal
 import re
 
