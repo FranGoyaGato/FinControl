@@ -231,7 +231,7 @@ export default function ImportData() {
       {step === 2 && (
         <Card data-testid="import-step-2" className="border border-gray-200">
           <CardHeader>
-            <CardTitle>Paso 2: Sube el archivo CSV</CardTitle>
+            <CardTitle>Paso 2: Sube el archivo CSV o Excel</CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
             <div className="border-2 border-dashed border-gray-300 rounded-lg p-8 text-center">
@@ -239,7 +239,7 @@ export default function ImportData() {
               <input
                 data-testid="file-input"
                 type="file"
-                accept=".csv"
+                accept=".csv,.xlsx"
                 onChange={handleFileChange}
                 className="hidden"
                 id="csv-file"
