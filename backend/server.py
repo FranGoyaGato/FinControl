@@ -467,6 +467,7 @@ async def parse_csv(file: UploadFile = File(...), import_type: str = Query(...),
     filename = file.filename.lower()
     
     rows = []
+    detected_columns = []
     
     # Detect file type and parse accordingly
     if filename.endswith('.xlsx'):
