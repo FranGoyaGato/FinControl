@@ -507,21 +507,32 @@ async def parse_csv(file: UploadFile = File(...), import_type: str = Query(...),
             headers = [str(cell.value).strip().lower() if cell.value else '' for cell in ws.row(0)]
             detected_columns = headers.copy()
             
-            # Get data rows
+            # Get data rows - map by position: A=fecha, C=concepto, D=importe
             for row_idx in range(1, ws.nrows):
-                row_dict = {}
-                for col_idx in range(ws.ncols):
-                    if col_idx < len(headers) and headers[col_idx]:
-                        cell = ws.cell(row_idx, col_idx)
-                        # Handle different cell types
-                        if cell.ctype == xlrd.XL_CELL_NUMBER:
-                            row_dict[headers[col_idx]] = str(cell.value)
-                        elif cell.ctype == xlrd.XL_CELL_DATE:
-                            # Convert Excel date to string
-                            date_tuple = xlrd.xldate_as_tuple(cell.value, wb.datemode)
-                            row_dict[headers[col_idx]] = f"{date_tuple[2]:02d}/{date_tuple[1]:02d}/{date_tuple[0]}"
-                        else:
-                            row_dict[headers[col_idx]] = str(cell.value).strip() if cell.value else ''
+                if ws.ncols < 4:
+                    continue
+                
+                # Column A (index 0) = fecha
+                fecha_cell = ws.cell(row_idx, 0)
+                if fecha_cell.ctype == xlrd.XL_CELL_DATE:
+                    date_tuple = xlrd.xldate_as_tuple(fecha_cell.value, wb.datemode)
+                    fecha_val = f"{date_tuple[2]:02d}/{date_tuple[1]:02d}/{date_tuple[0]}"
+                else:
+                    fecha_val = str(fecha_cell.value).strip() if fecha_cell.value else ''
+                
+                # Column C (index 2) = concepto
+                concepto_cell = ws.cell(row_idx, 2)
+                concepto_val = str(concepto_cell.value).strip() if concepto_cell.value else ''
+                
+                # Column D (index 3) = importe
+                importe_cell = ws.cell(row_idx, 3)
+                importe_val = str(importe_cell.value) if importe_cell.value else '0'
+                
+                row_dict = {
+                    'fecha': fecha_val,
+                    'concepto': concepto_val,
+                    'importe': importe_val
+                }
                 rows.append(row_dict)
             
         except Exception as e:
