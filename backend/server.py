@@ -480,16 +480,16 @@ async def parse_csv(file: UploadFile = File(...), import_type: str = Query(...),
             headers = [cell.value.strip().lower() if cell.value else '' for cell in ws[1]]
             detected_columns = headers.copy()
             
-            # Get data rows
+            # Get data rows - map by position: A=fecha, C=concepto, D=importe
             for row in ws.iter_rows(min_row=2, values_only=True):
-                row_dict = {}
-                for idx, value in enumerate(row):
-                    if idx < len(headers) and headers[idx]:
-                        # For numeric values, keep as is; for others convert to string
-                        if isinstance(value, (int, float)):
-                            row_dict[headers[idx]] = str(value)
-                        else:
-                            row_dict[headers[idx]] = str(value).strip() if value is not None else ''
+                if not row or len(row) < 4:
+                    continue
+                
+                row_dict = {
+                    'fecha': str(row[0]).strip() if row[0] is not None else '',
+                    'concepto': str(row[2]).strip() if row[2] is not None else '',
+                    'importe': str(row[3]) if row[3] is not None else '0'
+                }
                 rows.append(row_dict)
             
             wb.close()
