@@ -1,0 +1,251 @@
+import { useState, useEffect } from 'react';
+import axios from 'axios';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { toast } from 'sonner';
+import { TrendingDown, Search, Download } from 'lucide-react';
+import * as XLSX from 'xlsx';
+
+const API = `${process.env.REACT_APP_BACKEND_URL}/api`;
+
+export default function Expenses() {
+  const [transactions, setTransactions] = useState([]);
+  const [categories, setCategories] = useState([]);
+  const [subcategories, setSubcategories] = useState([]);
+  const [searchTerm, setSearchTerm] = useState('');
+  const [selectedCategory, setSelectedCategory] = useState('');
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    loadCategories();
+    loadSubcategories();
+    loadTransactions();
+  }, []);
+
+  const loadCategories = async () => {
+    try {
+      const response = await axios.get(`${API}/categories`);
+      setCategories(response.data);
+    } catch (error) {
+      console.error('Error loading categories:', error);
+    }
+  };
+
+  const loadSubcategories = async () => {
+    try {
+      const response = await axios.get(`${API}/subcategories`);
+      setSubcategories(response.data);
+    } catch (error) {
+      console.error('Error loading subcategories:', error);
+    }
+  };
+
+  const loadTransactions = async () => {
+    try {
+      setLoading(true);
+      const response = await axios.get(`${API}/transactions`, {
+        params: { type: 'expense' }
+      });
+      setTransactions(response.data);
+    } catch (error) {
+      console.error('Error loading transactions:', error);
+      toast.error('Error al cargar gastos');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const updateTransactionCategory = async (txId, categoryId, subcategoryId) => {
+    try {
+      await axios.put(`${API}/transactions/${txId}`, null, {
+        params: { category_id: categoryId, subcategory_id: subcategoryId }
+      });
+      toast.success('Categoría actualizada');
+      loadTransactions();
+    } catch (error) {
+      console.error('Error updating category:', error);
+      toast.error('Error al actualizar categoría');
+    }
+  };
+
+  const exportToExcel = () => {
+    const data = filteredTransactions.map(tx => ({
+      Fecha: tx.date,
+      Concepto: tx.concept,
+      Importe: Math.abs(tx.amount),
+      Categoría: getCategoryName(tx.category_id),
+      Subcategoría: getSubcategoryName(tx.subcategory_id)
+    }));
+
+    const ws = XLSX.utils.json_to_sheet(data);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, 'Gastos');
+    XLSX.writeFile(wb, `gastos_${new Date().toISOString().slice(0, 10)}.xlsx`);
+  };
+
+  const getCategoryName = (id) => {
+    const cat = categories.find(c => c.id === id);
+    return cat ? cat.name : 'Sin categoría';
+  };
+
+  const getSubcategoryName = (id) => {
+    const sub = subcategories.find(s => s.id === id);
+    return sub ? sub.name : '';
+  };
+
+  const formatCurrency = (value) => {
+    return new Intl.NumberFormat('es-ES', {
+      style: 'currency',
+      currency: 'EUR'
+    }).format(Math.abs(value));
+  };
+
+  const filteredTransactions = transactions.filter(tx => {
+    const matchesSearch = tx.concept.toLowerCase().includes(searchTerm.toLowerCase());
+    const matchesCategory = !selectedCategory || tx.category_id === selectedCategory;
+    return matchesSearch && matchesCategory;
+  });
+
+  const totalExpense = filteredTransactions.reduce((sum, tx) => sum + Math.abs(tx.amount), 0);
+
+  // Group by category
+  const groupedByCategory = filteredTransactions.reduce((acc, tx) => {
+    const catName = getCategoryName(tx.category_id);
+    if (!acc[catName]) acc[catName] = 0;
+    acc[catName] += Math.abs(tx.amount);
+    return acc;
+  }, {});
+
+  return (
+    <div className="space-y-6">
+      <div className="flex items-center justify-between flex-wrap gap-4">
+        <div>
+          <h1 className="text-3xl font-bold flex items-center gap-2" style={{ fontFamily: 'Space Grotesk, sans-serif' }}>
+            <TrendingDown className="w-8 h-8 text-red-600" />
+            Gastos
+          </h1>
+          <p className="text-gray-600 mt-1">Gestiona tus gastos</p>
+        </div>
+        <Button data-testid="export-expenses-btn" onClick={exportToExcel} variant="outline" className="gap-2">
+          <Download className="w-4 h-4" />
+          Exportar
+        </Button>
+      </div>
+
+      {/* Summary Card */}
+      <Card className="border border-gray-200 bg-gradient-to-br from-red-50 to-rose-50">
+        <CardContent className="pt-6">
+          <div className="text-sm text-gray-600 mb-1">Total Gastos</div>
+          <div className="text-3xl font-bold text-red-700" style={{ fontFamily: 'Space Grotesk, sans-serif' }}>
+            {formatCurrency(totalExpense)}
+          </div>
+          <div className="text-sm text-gray-600 mt-2">{filteredTransactions.length} transacciones</div>
+        </CardContent>
+      </Card>
+
+      {/* Filters */}
+      <Card data-testid="expenses-filters" className="border border-gray-200">
+        <CardContent className="pt-6">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="relative">
+              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
+              <input
+                data-testid="search-expenses-input"
+                type="text"
+                placeholder="Buscar por concepto..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-500"
+              />
+            </div>
+            <Select value={selectedCategory} onValueChange={setSelectedCategory}>
+              <SelectTrigger data-testid="category-filter-select-expenses">
+                <SelectValue placeholder="Filtrar por categoría" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="">Todas las categorías</SelectItem>
+                {categories.map((cat) => (
+                  <SelectItem key={cat.id} value={cat.id}>{cat.name}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Grouped Summary */}
+      <Card className="border border-gray-200">
+        <CardHeader>
+          <CardTitle>Resumen por Categoría</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="space-y-3">
+            {Object.entries(groupedByCategory).map(([category, amount]) => (
+              <div key={category} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                <span className="font-medium text-gray-700">{category}</span>
+                <span className="font-semibold text-red-700">{formatCurrency(amount)}</span>
+              </div>
+            ))}
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Transactions Table */}
+      <Card data-testid="expenses-transactions-table" className="border border-gray-200">
+        <CardHeader>
+          <CardTitle>Transacciones</CardTitle>
+        </CardHeader>
+        <CardContent>
+          {loading ? (
+            <div className="text-center py-8">
+              <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-red-600"></div>
+            </div>
+          ) : filteredTransactions.length === 0 ? (
+            <div className="text-center py-8 text-gray-500">
+              <TrendingDown className="w-12 h-12 mx-auto mb-3 text-gray-300" />
+              <p>No hay gastos registrados</p>
+            </div>
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="w-full">
+                <thead>
+                  <tr className="border-b border-gray-200 text-left">
+                    <th className="pb-3 text-sm font-semibold text-gray-600">Fecha</th>
+                    <th className="pb-3 text-sm font-semibold text-gray-600">Concepto</th>
+                    <th className="pb-3 text-sm font-semibold text-gray-600">Importe</th>
+                    <th className="pb-3 text-sm font-semibold text-gray-600">Categoría</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {filteredTransactions.map((tx) => (
+                    <tr key={tx.id} data-testid={`expense-row-${tx.id}`} className="border-b border-gray-100">
+                      <td className="py-3 text-sm">{new Date(tx.date).toLocaleDateString('es-ES')}</td>
+                      <td className="py-3 text-sm">{tx.concept}</td>
+                      <td className="py-3 text-sm font-semibold text-red-700">{formatCurrency(tx.amount)}</td>
+                      <td className="py-3 text-sm">
+                        <Select
+                          value={tx.category_id || ''}
+                          onValueChange={(val) => updateTransactionCategory(tx.id, val, tx.subcategory_id)}
+                        >
+                          <SelectTrigger className="h-8 text-xs">
+                            <SelectValue placeholder="Sin categoría" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {categories.map((cat) => (
+                              <SelectItem key={cat.id} value={cat.id}>{cat.name}</SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </CardContent>
+      </Card>
+    </div>
+  );
+}
