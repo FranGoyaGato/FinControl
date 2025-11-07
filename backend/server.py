@@ -661,7 +661,8 @@ async def parse_csv(file: UploadFile = File(...), import_type: str = Query(...),
         'preview': preview,
         'count': len(preview),
         'entity_id': entity_id,
-        'import_type': import_type
+        'import_type': import_type,
+        'detected_columns': detected_columns
     }
 
 @api_router.post("/import/confirm")
