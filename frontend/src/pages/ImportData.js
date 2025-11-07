@@ -246,7 +246,7 @@ export default function ImportData() {
               />
               <label htmlFor="csv-file" className="cursor-pointer">
                 <Button data-testid="choose-file-btn" variant="outline" asChild>
-                  <span>Seleccionar archivo CSV</span>
+                  <span>Seleccionar archivo CSV o Excel</span>
                 </Button>
               </label>
               {file && (
