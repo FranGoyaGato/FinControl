@@ -291,7 +291,9 @@ export default function ImportData() {
                     <tr key={idx} className="border-b border-gray-100">
                       <td className="py-2">{tx.date}</td>
                       <td className="py-2">{tx.concept}</td>
-                      <td className="py-2 font-semibold">{formatCurrency(tx.amount)}</td>
+                      <td className={`py-2 font-semibold ${tx.amount < 0 ? 'text-red-600' : 'text-green-600'}`}>
+                        {formatCurrency(tx.amount)}
+                      </td>
                       <td className="py-2">
                         <Select
                           value={tx.category_id || ''}
