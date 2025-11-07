@@ -240,7 +240,7 @@ export default function ImportData() {
               <input
                 data-testid="file-input"
                 type="file"
-                accept=".csv,.xlsx"
+                accept=".csv,.xls,.xlsx"
                 onChange={handleFileChange}
                 className="hidden"
                 id="csv-file"
