@@ -471,7 +471,7 @@ async def parse_csv(file: UploadFile = File(...), import_type: str = Query(...),
     if filename.endswith('.xlsx'):
         # Parse XLSX
         try:
-            wb = load_workbook(io.BytesIO(content), read_only=True)
+            wb = load_workbook(io.BytesIO(content), read_only=True, data_only=True)
             ws = wb.active
             
             # Get header row (first row)
@@ -482,8 +482,11 @@ async def parse_csv(file: UploadFile = File(...), import_type: str = Query(...),
                 row_dict = {}
                 for idx, value in enumerate(row):
                     if idx < len(headers) and headers[idx]:
-                        # Convert to string and strip
-                        row_dict[headers[idx]] = str(value).strip() if value is not None else ''
+                        # For numeric values, keep as is; for others convert to string
+                        if isinstance(value, (int, float)):
+                            row_dict[headers[idx]] = str(value)
+                        else:
+                            row_dict[headers[idx]] = str(value).strip() if value is not None else ''
                 rows.append(row_dict)
             
             wb.close()
