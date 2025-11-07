@@ -211,7 +211,7 @@ export default function ImportData() {
                     <p>Columnas: <code>fecha, concepto, importe</code></p>
                   )}
                   <p className="mt-1">Formato fecha: DD/MM/YYYY</p>
-                  <p className="text-xs mt-1">Formatos aceptados: .csv y .xlsx</p>
+                  <p className="text-xs mt-1">Formatos aceptados: .csv, .xls y .xlsx</p>
                 </div>
               </div>
             </div>
