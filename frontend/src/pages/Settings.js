@@ -419,12 +419,12 @@ export default function Settings() {
                   value={newRule.contains}
                   onChange={(e) => setNewRule({ ...newRule, contains: e.target.value })}
                 />
-                <Select value={newRule.sign} onValueChange={(val) => setNewRule({ ...newRule, sign: val })}>
+                <Select value={newRule.sign || "any"} onValueChange={(val) => setNewRule({ ...newRule, sign: val === "any" ? "" : val })}>
                   <SelectTrigger data-testid="rule-sign-select">
                     <SelectValue placeholder="Signo (opcional)" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="">Cualquiera</SelectItem>
+                    <SelectItem value="any">Cualquiera</SelectItem>
                     <SelectItem value="+">Positivo (+)</SelectItem>
                     <SelectItem value="-">Negativo (-)</SelectItem>
                   </SelectContent>
