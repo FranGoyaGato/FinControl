@@ -519,8 +519,19 @@ async def parse_csv(file: UploadFile = File(...), import_type: str = Query(...),
             # Expected columns: fecha, concepto, importe, saldo (ignore saldo)
             date = normalize_date(row.get('fecha', ''))
             concept = row.get('concepto', '')
-            amount_str = row.get('importe', '0').replace('.', '').replace(',', '.')
+            amount_str = row.get('importe', '0')
+            
+            # Parse amount - handle both CSV (1.234,56) and Excel (1234.56) formats
             try:
+                # Check if it's already a float (from Excel) or needs parsing (from CSV)
+                if ',' in amount_str and '.' in amount_str:
+                    # CSV format: 1.234,56 -> remove thousands separator, replace decimal
+                    amount_str = amount_str.replace('.', '').replace(',', '.')
+                elif ',' in amount_str:
+                    # Only comma: 1234,56 -> replace decimal separator
+                    amount_str = amount_str.replace(',', '.')
+                # else: Excel format or no separators - use as is
+                
                 amount = float(amount_str)
             except:
                 amount = 0.0
@@ -541,8 +552,15 @@ async def parse_csv(file: UploadFile = File(...), import_type: str = Query(...),
             # Expected columns: fecha, concepto, importe
             date = normalize_date(row.get('fecha', ''))
             concept = row.get('concepto', '')
-            amount_str = row.get('importe', '0').replace('.', '').replace(',', '.')
+            amount_str = row.get('importe', '0')
+            
+            # Parse amount - handle both CSV and Excel formats
             try:
+                if ',' in amount_str and '.' in amount_str:
+                    amount_str = amount_str.replace('.', '').replace(',', '.')
+                elif ',' in amount_str:
+                    amount_str = amount_str.replace(',', '.')
+                
                 amount = float(amount_str)
             except:
                 amount = 0.0
