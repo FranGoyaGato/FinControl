@@ -547,10 +547,12 @@ async def parse_csv(file: UploadFile = File(...), import_type: str = Query(...),
     preview = []
     for row in rows:
         if import_type == 'account':
-            # Expected columns: fecha, concepto, importe, saldo (ignore saldo)
-            date = normalize_date(row.get('fecha', ''))
+            # Map columns flexibly - support different column names
+            date_raw = row.get('fecha operacion') or row.get('fecha operación') or row.get('fecha', '')
             concept = row.get('concepto', '')
-            amount_str = row.get('importe', '0')
+            amount_str = row.get('importe eur') or row.get('importe', '0')
+            
+            date = normalize_date(date_raw)
             
             # Parse amount - handle both CSV (1.234,56) and Excel (1234.56) formats
             try:
