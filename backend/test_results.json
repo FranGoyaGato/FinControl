@@ -1,0 +1,144 @@
+{
+  "timestamp": "2025-11-07T17:46:24.553508",
+  "total_tests": 27,
+  "passed": 27,
+  "failed": 0,
+  "success_rate": "100.0%",
+  "test_details": [
+    {
+      "test": "Root Endpoint",
+      "status": "PASSED",
+      "code": 200
+    },
+    {
+      "test": "Create Account",
+      "status": "PASSED",
+      "code": 200
+    },
+    {
+      "test": "Get Accounts",
+      "status": "PASSED",
+      "code": 200
+    },
+    {
+      "test": "Create Credit Card",
+      "status": "PASSED",
+      "code": 200
+    },
+    {
+      "test": "Get Credit Cards",
+      "status": "PASSED",
+      "code": 200
+    },
+    {
+      "test": "Create Category",
+      "status": "PASSED",
+      "code": 200
+    },
+    {
+      "test": "Get Categories",
+      "status": "PASSED",
+      "code": 200
+    },
+    {
+      "test": "Create Subcategory",
+      "status": "PASSED",
+      "code": 200
+    },
+    {
+      "test": "Get Subcategories",
+      "status": "PASSED",
+      "code": 200
+    },
+    {
+      "test": "Create Rule",
+      "status": "PASSED",
+      "code": 200
+    },
+    {
+      "test": "Get Rules",
+      "status": "PASSED",
+      "code": 200
+    },
+    {
+      "test": "Create Transaction",
+      "status": "PASSED",
+      "code": 200
+    },
+    {
+      "test": "Get Transactions",
+      "status": "PASSED",
+      "code": 200
+    },
+    {
+      "test": "Get Transactions (Filtered)",
+      "status": "PASSED",
+      "code": 200
+    },
+    {
+      "test": "Update Transaction",
+      "status": "PASSED",
+      "code": 200
+    },
+    {
+      "test": "Duplicate Transaction Prevention",
+      "status": "PASSED",
+      "code": 400
+    },
+    {
+      "test": "Create Card Transaction",
+      "status": "PASSED",
+      "code": 200
+    },
+    {
+      "test": "Get Card Transactions",
+      "status": "PASSED",
+      "code": 200
+    },
+    {
+      "test": "Update Card Transaction",
+      "status": "PASSED",
+      "code": 200
+    },
+    {
+      "test": "Get Dashboard",
+      "status": "PASSED",
+      "code": 200
+    },
+    {
+      "test": "Get Dashboard (Filtered)",
+      "status": "PASSED",
+      "code": 200
+    },
+    {
+      "test": "Get Settings",
+      "status": "PASSED",
+      "code": 200
+    },
+    {
+      "test": "Delete Rule",
+      "status": "PASSED",
+      "code": 200
+    },
+    {
+      "test": "Delete Subcategory",
+      "status": "PASSED",
+      "code": 200
+    },
+    {
+      "test": "Delete Category",
+      "status": "PASSED",
+      "code": 200
+    },
+    {
+      "test": "Delete Card",
+      "status": "PASSED",
+      "code": 200
+    },
+    {
+      "test": "Delete Account",
+      "status": "PASSED",
+      "code": 200
+    }
+  ]
+}
