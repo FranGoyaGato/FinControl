@@ -458,21 +458,60 @@ async def update_card_transaction(transaction_id: str, category_id: Optional[str
     return CardTransaction(**result)
 
 
-# --- IMPORT CSV ---
+# --- IMPORT CSV/XLSX ---
 @api_router.post("/import/parse-csv")
 async def parse_csv(file: UploadFile = File(...), import_type: str = Query(...), entity_id: str = Query(...)):
-    """Parse CSV and return preview with auto-categorization"""
+    """Parse CSV or XLSX and return preview with auto-categorization"""
     content = await file.read()
-    text_content = content.decode('utf-8')
+    filename = file.filename.lower()
     
-    separator = detect_separator(text_content)
-    reader = csv.DictReader(io.StringIO(text_content), delimiter=separator)
+    rows = []
     
+    # Detect file type and parse accordingly
+    if filename.endswith('.xlsx'):
+        # Parse XLSX
+        try:
+            wb = load_workbook(io.BytesIO(content), read_only=True)
+            ws = wb.active
+            
+            # Get header row (first row)
+            headers = [cell.value.strip().lower() if cell.value else '' for cell in ws[1]]
+            
+            # Get data rows
+            for row in ws.iter_rows(min_row=2, values_only=True):
+                row_dict = {}
+                for idx, value in enumerate(row):
+                    if idx < len(headers) and headers[idx]:
+                        # Convert to string and strip
+                        row_dict[headers[idx]] = str(value).strip() if value is not None else ''
+                rows.append(row_dict)
+            
+            wb.close()
+        except Exception as e:
+            logging.error(f"Error parsing XLSX: {e}")
+            raise HTTPException(status_code=400, detail=f"Error al procesar archivo XLSX: {str(e)}")
+    
+    elif filename.endswith('.csv'):
+        # Parse CSV
+        try:
+            text_content = content.decode('utf-8')
+            separator = detect_separator(text_content)
+            reader = csv.DictReader(io.StringIO(text_content), delimiter=separator)
+            
+            for row in reader:
+                # Normalize column names (lowercase, strip)
+                row_dict = {k.strip().lower(): v.strip() for k, v in row.items()}
+                rows.append(row_dict)
+        except Exception as e:
+            logging.error(f"Error parsing CSV: {e}")
+            raise HTTPException(status_code=400, detail=f"Error al procesar archivo CSV: {str(e)}")
+    
+    else:
+        raise HTTPException(status_code=400, detail="Formato de archivo no soportado. Use .csv o .xlsx")
+    
+    # Process rows
     preview = []
-    for row in reader:
-        # Normalize column names (lowercase, strip)
-        row = {k.strip().lower(): v.strip() for k, v in row.items()}
-        
+    for row in rows:
         if import_type == 'account':
             # Expected columns: fecha, concepto, importe, saldo (ignore saldo)
             date = normalize_date(row.get('fecha', ''))
