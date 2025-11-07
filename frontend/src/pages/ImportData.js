@@ -204,14 +204,11 @@ export default function ImportData() {
               <div className="flex items-start gap-2">
                 <AlertCircle className="w-5 h-5 text-blue-600 mt-0.5" />
                 <div className="text-sm text-blue-800">
-                  <p className="font-semibold mb-1">Formato CSV/Excel:</p>
-                  {importType === 'account' ? (
-                    <p>Columnas: <code>fecha operacion, concepto, importe eur</code></p>
-                  ) : (
-                    <p>Columnas: <code>fecha operacion, concepto, importe eur</code></p>
-                  )}
-                  <p className="mt-1">Formato fecha: DD/MM/YYYY</p>
-                  <p className="text-xs mt-1">Formatos aceptados: .csv, .xls y .xlsx</p>
+                  <p className="font-semibold mb-1">Formato Excel:</p>
+                  <p><strong>Columna A:</strong> Fecha operación (DD/MM/YYYY)</p>
+                  <p><strong>Columna C:</strong> Concepto</p>
+                  <p><strong>Columna D:</strong> Importe EUR</p>
+                  <p className="text-xs mt-2">Formatos: .csv, .xls, .xlsx</p>
                 </div>
               </div>
             </div>
