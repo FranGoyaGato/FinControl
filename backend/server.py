@@ -597,18 +597,10 @@ async def parse_csv(file: UploadFile = File(...), import_type: str = Query(...),
             })
         
         elif import_type == 'card':
-            # Direct mapping with exact column names
-            date_raw = (row.get('fecha operacion') or 
-                       row.get('fecha operación') or 
-                       row.get('fecha_operacion') or
-                       row.get('fecha', ''))
-            
-            concept = (row.get('concepto') or 
-                      row.get('descripcion') or '')
-            
-            amount_str = (row.get('importe eur') or 
-                         row.get('importe_eur') or
-                         row.get('importe', '0'))
+            # Direct mapping - columns already mapped by position
+            date_raw = row.get('fecha', '')
+            concept = row.get('concepto', '')
+            amount_str = row.get('importe', '0')
             
             date = normalize_date(date_raw)
             
