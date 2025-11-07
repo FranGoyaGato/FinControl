@@ -470,7 +470,7 @@ async def parse_csv(file: UploadFile = File(...), import_type: str = Query(...),
     
     # Detect file type and parse accordingly
     if filename.endswith('.xlsx'):
-        # Parse XLSX
+        # Parse XLSX (Excel 2007+)
         try:
             wb = load_workbook(io.BytesIO(content), read_only=True, data_only=True)
             ws = wb.active
@@ -495,6 +495,36 @@ async def parse_csv(file: UploadFile = File(...), import_type: str = Query(...),
             logging.error(f"Error parsing XLSX: {e}")
             raise HTTPException(status_code=400, detail=f"Error al procesar archivo XLSX: {str(e)}")
     
+    elif filename.endswith('.xls'):
+        # Parse XLS (Excel 97-2003)
+        try:
+            wb = xlrd.open_workbook(file_contents=content)
+            ws = wb.sheet_by_index(0)
+            
+            # Get header row (first row)
+            headers = [str(cell.value).strip().lower() if cell.value else '' for cell in ws.row(0)]
+            
+            # Get data rows
+            for row_idx in range(1, ws.nrows):
+                row_dict = {}
+                for col_idx in range(ws.ncols):
+                    if col_idx < len(headers) and headers[col_idx]:
+                        cell = ws.cell(row_idx, col_idx)
+                        # Handle different cell types
+                        if cell.ctype == xlrd.XL_CELL_NUMBER:
+                            row_dict[headers[col_idx]] = str(cell.value)
+                        elif cell.ctype == xlrd.XL_CELL_DATE:
+                            # Convert Excel date to string
+                            date_tuple = xlrd.xldate_as_tuple(cell.value, wb.datemode)
+                            row_dict[headers[col_idx]] = f"{date_tuple[2]:02d}/{date_tuple[1]:02d}/{date_tuple[0]}"
+                        else:
+                            row_dict[headers[col_idx]] = str(cell.value).strip() if cell.value else ''
+                rows.append(row_dict)
+            
+        except Exception as e:
+            logging.error(f"Error parsing XLS: {e}")
+            raise HTTPException(status_code=400, detail=f"Error al procesar archivo XLS: {str(e)}")
+    
     elif filename.endswith('.csv'):
         # Parse CSV
         try:
@@ -511,7 +541,7 @@ async def parse_csv(file: UploadFile = File(...), import_type: str = Query(...),
             raise HTTPException(status_code=400, detail=f"Error al procesar archivo CSV: {str(e)}")
     
     else:
-        raise HTTPException(status_code=400, detail="Formato de archivo no soportado. Use .csv o .xlsx")
+        raise HTTPException(status_code=400, detail="Formato de archivo no soportado. Use .csv, .xls o .xlsx")
     
     # Process rows
     preview = []
