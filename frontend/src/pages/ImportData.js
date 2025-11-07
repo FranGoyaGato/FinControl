@@ -128,7 +128,7 @@ export default function ImportData() {
     return new Intl.NumberFormat('es-ES', {
       style: 'currency',
       currency: 'EUR'
-    }).format(Math.abs(value));
+    }).format(value);
   };
 
   const entities = importType === 'account' ? accounts : cards;
