@@ -505,6 +505,7 @@ async def parse_csv(file: UploadFile = File(...), import_type: str = Query(...),
             
             # Get header row (first row)
             headers = [str(cell.value).strip().lower() if cell.value else '' for cell in ws.row(0)]
+            detected_columns = headers.copy()
             
             # Get data rows
             for row_idx in range(1, ws.nrows):
