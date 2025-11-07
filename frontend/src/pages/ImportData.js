@@ -206,9 +206,9 @@ export default function ImportData() {
                 <div className="text-sm text-blue-800">
                   <p className="font-semibold mb-1">Formato CSV/Excel:</p>
                   {importType === 'account' ? (
-                    <p>Columnas: <code>fecha, concepto, importe, saldo</code></p>
+                    <p>Columnas: <code>fecha operacion, concepto, importe eur</code></p>
                   ) : (
-                    <p>Columnas: <code>fecha, concepto, importe</code></p>
+                    <p>Columnas: <code>fecha operacion, concepto, importe eur</code></p>
                   )}
                   <p className="mt-1">Formato fecha: DD/MM/YYYY</p>
                   <p className="text-xs mt-1">Formatos aceptados: .csv, .xls y .xlsx</p>
