@@ -239,7 +239,7 @@ export default function Settings() {
                 </Button>
               </div>
               <div className="space-y-2">
-                {accounts.map((acc) => (
+                {accounts.sort((a, b) => a.name.localeCompare(b.name)).map((acc) => (
                   <div key={acc.id} className="flex items-center justify-between p-3 border border-gray-200 rounded-lg">
                     <span className="font-medium">{acc.name}</span>
                     <Button
