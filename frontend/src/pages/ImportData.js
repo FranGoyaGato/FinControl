@@ -113,12 +113,6 @@ export default function ImportData() {
     setSelectedEntity('');
   };
 
-  const updatePreviewCategory = (index, categoryId) => {
-    const updated = [...preview];
-    updated[index].category_id = categoryId;
-    setPreview(updated);
-  };
-
   const getCategoryName = (id) => {
     const cat = categories.find(c => c.id === id);
     return cat ? cat.name : 'Sin categoría';
