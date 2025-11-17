@@ -146,6 +146,18 @@ export default function Settings() {
     }
   };
 
+  const updateCategory = async () => {
+    if (!editingCategory || !editingCategory.name) return;
+    try {
+      await axios.put(`${API}/categories/${editingCategory.id}`, { name: editingCategory.name });
+      toast.success('Categoría actualizada');
+      setEditingCategory(null);
+      loadCategories();
+    } catch (error) {
+      toast.error('Error al actualizar categoría');
+    }
+  };
+
   const deleteCategory = async (id) => {
     try {
       await axios.delete(`${API}/categories/${id}`);
