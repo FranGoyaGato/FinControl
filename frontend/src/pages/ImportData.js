@@ -314,10 +314,10 @@ export default function ImportData() {
                         <td className="py-2">
                           {categorySubcategories.length > 0 && (
                             <Select
-                              value={tx.subcategory_id || ''}
+                              value={tx.subcategory_id || 'none'}
                               onValueChange={(val) => {
                                 const updated = [...preview];
-                                updated[idx].subcategory_id = val || null;
+                                updated[idx].subcategory_id = val === 'none' ? null : val;
                                 setPreview(updated);
                               }}
                             >
@@ -325,7 +325,7 @@ export default function ImportData() {
                                 <SelectValue placeholder="Opcional" />
                               </SelectTrigger>
                               <SelectContent>
-                                <SelectItem value="">Ninguna</SelectItem>
+                                <SelectItem value="none">Ninguna</SelectItem>
                                 {categorySubcategories.map((sub) => (
                                   <SelectItem key={sub.id} value={sub.id}>{sub.name}</SelectItem>
                                 ))}
