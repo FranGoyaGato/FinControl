@@ -266,14 +266,14 @@ export default function Expenses() {
                         <td className="py-3 text-sm">
                           {txSubcategories.length > 0 && (
                             <Select
-                              value={tx.subcategory_id || ''}
-                              onValueChange={(val) => updateTransactionCategory(tx.id, tx.category_id, val || null)}
+                              value={tx.subcategory_id || 'none'}
+                              onValueChange={(val) => updateTransactionCategory(tx.id, tx.category_id, val === 'none' ? null : val)}
                             >
                               <SelectTrigger className="h-8 text-xs w-32">
                                 <SelectValue placeholder="Ninguna" />
                               </SelectTrigger>
                               <SelectContent>
-                                <SelectItem value="">Ninguna</SelectItem>
+                                <SelectItem value="none">Ninguna</SelectItem>
                                 {txSubcategories.map((sub) => (
                                   <SelectItem key={sub.id} value={sub.id}>{sub.name}</SelectItem>
                                 ))}
