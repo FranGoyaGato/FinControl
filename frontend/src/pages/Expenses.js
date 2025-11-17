@@ -58,10 +58,32 @@ export default function Expenses() {
 
   const updateTransactionCategory = async (txId, categoryId, subcategoryId) => {
     try {
+      const tx = transactions.find(t => t.id === txId);
+      
       await axios.put(`${API}/transactions/${txId}`, null, {
         params: { category_id: categoryId, subcategory_id: subcategoryId }
       });
-      toast.success('Categoría actualizada');
+      
+      // Create automatic rule for same concept
+      if (tx && categoryId) {
+        try {
+          await axios.post(`${API}/rules`, {
+            source: 'bank',
+            contains: tx.concept,
+            sign: '-',
+            category_id: categoryId,
+            subcategory_id: subcategoryId,
+            priority: 5,
+            active: true
+          });
+          toast.success('Categoría actualizada y regla creada');
+        } catch (ruleError) {
+          toast.success('Categoría actualizada');
+        }
+      } else {
+        toast.success('Categoría actualizada');
+      }
+      
       loadTransactions();
     } catch (error) {
       console.error('Error updating category:', error);
