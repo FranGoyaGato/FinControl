@@ -305,6 +305,20 @@ async def get_subcategories(category_id: Optional[str] = None):
     subcategories = await db.subcategories.find(query, {"_id": 0}).to_list(1000)
     return subcategories
 
+@api_router.put("/subcategories/{subcategory_id}", response_model=Subcategory)
+async def update_subcategory(subcategory_id: str, input: SubcategoryCreate):
+    result = await db.subcategories.find_one({"id": subcategory_id}, {"_id": 0})
+    if not result:
+        raise HTTPException(status_code=404, detail="Subcategory not found")
+    
+    await db.subcategories.update_one(
+        {"id": subcategory_id}, 
+        {"$set": {"name": input.name, "category_id": input.category_id}}
+    )
+    result['name'] = input.name
+    result['category_id'] = input.category_id
+    return Subcategory(**result)
+
 @api_router.delete("/subcategories/{subcategory_id}")
 async def delete_subcategory(subcategory_id: str):
     result = await db.subcategories.delete_one({"id": subcategory_id})
