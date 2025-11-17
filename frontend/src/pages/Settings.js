@@ -181,6 +181,21 @@ export default function Settings() {
     }
   };
 
+  const updateSubcategory = async () => {
+    if (!editingSubcategory || !editingSubcategory.name || !editingSubcategory.category_id) return;
+    try {
+      await axios.put(`${API}/subcategories/${editingSubcategory.id}`, {
+        name: editingSubcategory.name,
+        category_id: editingSubcategory.category_id
+      });
+      toast.success('Subcategoría actualizada');
+      setEditingSubcategory(null);
+      loadSubcategories();
+    } catch (error) {
+      toast.error('Error al actualizar subcategoría');
+    }
+  };
+
   const deleteSubcategory = async (id) => {
     try {
       await axios.delete(`${API}/subcategories/${id}`);
