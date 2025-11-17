@@ -285,7 +285,7 @@ export default function Settings() {
                 </Button>
               </div>
               <div className="space-y-2">
-                {cards.map((card) => (
+                {cards.sort((a, b) => a.name.localeCompare(b.name)).map((card) => (
                   <div key={card.id} className="flex items-center justify-between p-3 border border-gray-200 rounded-lg">
                     <span className="font-medium">{card.name} {card.last4 ? `(${card.last4})` : ''}</span>
                     <Button
