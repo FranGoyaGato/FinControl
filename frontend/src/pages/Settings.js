@@ -378,15 +378,26 @@ export default function Settings() {
                 {categories.sort((a, b) => a.name.localeCompare(b.name)).map((cat) => (
                   <div key={cat.id} className="flex items-center justify-between p-3 border border-gray-200 rounded-lg">
                     <span className="font-medium">{cat.name}</span>
-                    <Button
-                      data-testid={`delete-category-${cat.id}`}
-                      onClick={() => deleteCategory(cat.id)}
-                      variant="ghost"
-                      size="sm"
-                      className="text-red-600 hover:text-red-700"
-                    >
-                      <Trash2 className="w-4 h-4" />
-                    </Button>
+                    <div className="flex gap-2">
+                      <Button
+                        data-testid={`edit-category-${cat.id}`}
+                        onClick={() => setEditingCategory(cat)}
+                        variant="ghost"
+                        size="sm"
+                        className="text-blue-600 hover:text-blue-700"
+                      >
+                        <Edit className="w-4 h-4" />
+                      </Button>
+                      <Button
+                        data-testid={`delete-category-${cat.id}`}
+                        onClick={() => deleteCategory(cat.id)}
+                        variant="ghost"
+                        size="sm"
+                        className="text-red-600 hover:text-red-700"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </Button>
+                    </div>
                   </div>
                 ))}
               </div>
