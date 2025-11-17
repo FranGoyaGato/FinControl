@@ -443,15 +443,26 @@ export default function Settings() {
                       <span className="font-medium">{sub.name}</span>
                       <span className="text-sm text-gray-500 ml-2">({getCategoryName(sub.category_id)})</span>
                     </div>
-                    <Button
-                      data-testid={`delete-subcategory-${sub.id}`}
-                      onClick={() => deleteSubcategory(sub.id)}
-                      variant="ghost"
-                      size="sm"
-                      className="text-red-600 hover:text-red-700"
-                    >
-                      <Trash2 className="w-4 h-4" />
-                    </Button>
+                    <div className="flex gap-2">
+                      <Button
+                        data-testid={`edit-subcategory-${sub.id}`}
+                        onClick={() => setEditingSubcategory(sub)}
+                        variant="ghost"
+                        size="sm"
+                        className="text-blue-600 hover:text-blue-700"
+                      >
+                        <Edit className="w-4 h-4" />
+                      </Button>
+                      <Button
+                        data-testid={`delete-subcategory-${sub.id}`}
+                        onClick={() => deleteSubcategory(sub.id)}
+                        variant="ghost"
+                        size="sm"
+                        className="text-red-600 hover:text-red-700"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </Button>
+                    </div>
                   </div>
                 ))}
               </div>
