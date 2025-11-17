@@ -272,6 +272,16 @@ async def get_categories():
     categories = await db.categories.find({}, {"_id": 0}).to_list(1000)
     return categories
 
+@api_router.put("/categories/{category_id}", response_model=Category)
+async def update_category(category_id: str, input: CategoryCreate):
+    result = await db.categories.find_one({"id": category_id}, {"_id": 0})
+    if not result:
+        raise HTTPException(status_code=404, detail="Category not found")
+    
+    await db.categories.update_one({"id": category_id}, {"$set": {"name": input.name}})
+    result['name'] = input.name
+    return Category(**result)
+
 @api_router.delete("/categories/{category_id}")
 async def delete_category(category_id: str):
     result = await db.categories.delete_one({"id": category_id})
