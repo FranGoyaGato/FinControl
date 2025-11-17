@@ -65,10 +65,43 @@ export default function CreditCards() {
 
   const updateTransactionCategory = async (txId, categoryId) => {
     try {
-      await axios.put(`${API}/card-transactions/${txId}`, null, {
-        params: { category_id: categoryId }
-      });
-      toast.success('Categoría actualizada');
+      const tx = transactions.find(t => t.id === txId);
+      
+      if (tx && categoryId) {
+        // Apply to ALL transactions with same concept
+        const sameConcept = transactions.filter(t => t.concept === tx.concept);
+        
+        // Update all matching transactions
+        const updatePromises = sameConcept.map(t => 
+          axios.put(`${API}/card-transactions/${t.id}`, null, {
+            params: { category_id: categoryId }
+          })
+        );
+        
+        await Promise.all(updatePromises);
+        
+        // Create automatic rule for future transactions
+        try {
+          await axios.post(`${API}/rules`, {
+            source: 'card',
+            contains: tx.concept,
+            sign: null,
+            category_id: categoryId,
+            subcategory_id: null,
+            priority: 5,
+            active: true
+          });
+          toast.success(`Categoría aplicada a ${sameConcept.length} movimiento(s) y regla creada`);
+        } catch (ruleError) {
+          toast.success(`Categoría aplicada a ${sameConcept.length} movimiento(s)`);
+        }
+      } else {
+        await axios.put(`${API}/card-transactions/${txId}`, null, {
+          params: { category_id: categoryId }
+        });
+        toast.success('Categoría actualizada');
+      }
+      
       loadTransactions();
     } catch (error) {
       console.error('Error updating category:', error);
