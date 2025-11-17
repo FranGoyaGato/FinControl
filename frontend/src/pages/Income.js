@@ -238,31 +238,53 @@ export default function Income() {
                     <th className="pb-3 text-sm font-semibold text-gray-600">Concepto</th>
                     <th className="pb-3 text-sm font-semibold text-gray-600">Importe</th>
                     <th className="pb-3 text-sm font-semibold text-gray-600">Categoría</th>
+                    <th className="pb-3 text-sm font-semibold text-gray-600">Subcategoría</th>
                   </tr>
                 </thead>
                 <tbody>
-                  {filteredTransactions.map((tx) => (
-                    <tr key={tx.id} data-testid={`income-row-${tx.id}`} className="border-b border-gray-100">
-                      <td className="py-3 text-sm">{new Date(tx.date).toLocaleDateString('es-ES')}</td>
-                      <td className="py-3 text-sm">{tx.concept}</td>
-                      <td className="py-3 text-sm font-semibold text-green-700">{formatCurrency(tx.amount)}</td>
-                      <td className="py-3 text-sm">
-                        <Select
-                          value={tx.category_id || ''}
-                          onValueChange={(val) => updateTransactionCategory(tx.id, val, tx.subcategory_id)}
-                        >
-                          <SelectTrigger className="h-8 text-xs">
-                            <SelectValue placeholder="Sin categoría" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            {categories.map((cat) => (
-                              <SelectItem key={cat.id} value={cat.id}>{cat.name}</SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                      </td>
-                    </tr>
-                  ))}
+                  {filteredTransactions.map((tx) => {
+                    const txSubcategories = subcategories.filter(s => s.category_id === tx.category_id);
+                    return (
+                      <tr key={tx.id} data-testid={`income-row-${tx.id}`} className="border-b border-gray-100">
+                        <td className="py-3 text-sm">{new Date(tx.date).toLocaleDateString('es-ES')}</td>
+                        <td className="py-3 text-sm max-w-[200px] truncate">{tx.concept}</td>
+                        <td className="py-3 text-sm font-semibold text-green-700">{formatCurrency(tx.amount)}</td>
+                        <td className="py-3 text-sm">
+                          <Select
+                            value={tx.category_id || ''}
+                            onValueChange={(val) => updateTransactionCategory(tx.id, val, null)}
+                          >
+                            <SelectTrigger className="h-8 text-xs w-32">
+                              <SelectValue placeholder="Sin categoría" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {categories.map((cat) => (
+                                <SelectItem key={cat.id} value={cat.id}>{cat.name}</SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        </td>
+                        <td className="py-3 text-sm">
+                          {txSubcategories.length > 0 && (
+                            <Select
+                              value={tx.subcategory_id || ''}
+                              onValueChange={(val) => updateTransactionCategory(tx.id, tx.category_id, val || null)}
+                            >
+                              <SelectTrigger className="h-8 text-xs w-32">
+                                <SelectValue placeholder="Ninguna" />
+                              </SelectTrigger>
+                              <SelectContent>
+                                <SelectItem value="">Ninguna</SelectItem>
+                                {txSubcategories.map((sub) => (
+                                  <SelectItem key={sub.id} value={sub.id}>{sub.name}</SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
+                          )}
+                        </td>
+                      </tr>
+                    );
+                  })}
                 </tbody>
               </table>
             </div>
