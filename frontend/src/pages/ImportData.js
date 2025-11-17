@@ -284,32 +284,64 @@ export default function ImportData() {
                     <th className="pb-2 text-left">Concepto</th>
                     <th className="pb-2 text-left">Importe</th>
                     <th className="pb-2 text-left">Categoría</th>
+                    <th className="pb-2 text-left">Subcategoría</th>
                   </tr>
                 </thead>
                 <tbody>
-                  {preview.map((tx, idx) => (
-                    <tr key={idx} className="border-b border-gray-100">
-                      <td className="py-2">{tx.date}</td>
-                      <td className="py-2">{tx.concept}</td>
-                      <td className={`py-2 font-semibold ${tx.amount < 0 ? 'text-red-600' : 'text-green-600'}`}>
-                        {formatCurrency(tx.amount)}
-                      </td>
-                      <td className="py-2">
-                        <Select
-                          value={tx.category_id || ''}
-                          onValueChange={(val) => updatePreviewCategory(idx, val)}
-                        >
-                          <SelectTrigger className="h-8 text-xs w-32">
-                            <SelectValue placeholder="Sin categoría" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            {categories.map((cat) => (
-                              <SelectItem key={cat.id} value={cat.id}>{cat.name}</SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                      </td>
-                    </tr>
+                  {preview.map((tx, idx) => {
+                    const categorySubcategories = subcategories.filter(s => s.category_id === tx.category_id);
+                    return (
+                      <tr key={idx} className="border-b border-gray-100">
+                        <td className="py-2">{tx.date}</td>
+                        <td className="py-2 max-w-[200px] truncate">{tx.concept}</td>
+                        <td className={`py-2 font-semibold ${tx.amount < 0 ? 'text-red-600' : 'text-green-600'}`}>
+                          {formatCurrency(tx.amount)}
+                        </td>
+                        <td className="py-2">
+                          <Select
+                            value={tx.category_id || ''}
+                            onValueChange={(val) => {
+                              const updated = [...preview];
+                              updated[idx].category_id = val;
+                              updated[idx].subcategory_id = null;
+                              setPreview(updated);
+                            }}
+                          >
+                            <SelectTrigger className="h-8 text-xs w-32">
+                              <SelectValue placeholder="Sin categoría" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {categories.map((cat) => (
+                                <SelectItem key={cat.id} value={cat.id}>{cat.name}</SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        </td>
+                        <td className="py-2">
+                          {categorySubcategories.length > 0 && (
+                            <Select
+                              value={tx.subcategory_id || ''}
+                              onValueChange={(val) => {
+                                const updated = [...preview];
+                                updated[idx].subcategory_id = val || null;
+                                setPreview(updated);
+                              }}
+                            >
+                              <SelectTrigger className="h-8 text-xs w-32">
+                                <SelectValue placeholder="Opcional" />
+                              </SelectTrigger>
+                              <SelectContent>
+                                <SelectItem value="">Ninguna</SelectItem>
+                                {categorySubcategories.map((sub) => (
+                                  <SelectItem key={sub.id} value={sub.id}>{sub.name}</SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
+                          )}
+                        </td>
+                      </tr>
+                    );
+                  })}
                   ))}
                 </tbody>
               </table>
