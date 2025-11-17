@@ -60,12 +60,20 @@ export default function Income() {
     try {
       const tx = transactions.find(t => t.id === txId);
       
-      await axios.put(`${API}/transactions/${txId}`, null, {
-        params: { category_id: categoryId, subcategory_id: subcategoryId }
-      });
-      
-      // Create automatic rule for same concept
       if (tx && categoryId) {
+        // Apply to ALL transactions with same concept
+        const sameConcept = transactions.filter(t => t.concept === tx.concept);
+        
+        // Update all matching transactions
+        const updatePromises = sameConcept.map(t => 
+          axios.put(`${API}/transactions/${t.id}`, null, {
+            params: { category_id: categoryId, subcategory_id: subcategoryId }
+          })
+        );
+        
+        await Promise.all(updatePromises);
+        
+        // Create automatic rule for future transactions
         try {
           await axios.post(`${API}/rules`, {
             source: 'bank',
@@ -76,12 +84,14 @@ export default function Income() {
             priority: 5,
             active: true
           });
-          toast.success('Categoría actualizada y regla creada');
+          toast.success(`Categoría aplicada a ${sameConcept.length} movimiento(s) y regla creada`);
         } catch (ruleError) {
-          // Rule might already exist, just update transaction
-          toast.success('Categoría actualizada');
+          toast.success(`Categoría aplicada a ${sameConcept.length} movimiento(s)`);
         }
       } else {
+        await axios.put(`${API}/transactions/${txId}`, null, {
+          params: { category_id: categoryId, subcategory_id: subcategoryId }
+        });
         toast.success('Categoría actualizada');
       }
       
