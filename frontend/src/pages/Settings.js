@@ -553,6 +553,140 @@ export default function Settings() {
           </Card>
         </TabsContent>
       </Tabs>
+
+      {/* Edit Category Dialog */}
+      {editingCategory && (
+        <Dialog open={!!editingCategory} onOpenChange={() => setEditingCategory(null)}>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>Editar Categoría</DialogTitle>
+            </DialogHeader>
+            <div className="space-y-4 pt-4">
+              <Input
+                data-testid="edit-category-name"
+                value={editingCategory.name}
+                onChange={(e) => setEditingCategory({ ...editingCategory, name: e.target.value })}
+                placeholder="Nombre de la categoría"
+              />
+              <div className="flex gap-2">
+                <Button onClick={() => setEditingCategory(null)} variant="outline" className="flex-1">
+                  Cancelar
+                </Button>
+                <Button data-testid="save-category-btn" onClick={updateCategory} className="flex-1">
+                  Guardar
+                </Button>
+              </div>
+            </div>
+          </DialogContent>
+        </Dialog>
+      )}
+
+      {/* Edit Subcategory Dialog */}
+      {editingSubcategory && (
+        <Dialog open={!!editingSubcategory} onOpenChange={() => setEditingSubcategory(null)}>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>Editar Subcategoría</DialogTitle>
+            </DialogHeader>
+            <div className="space-y-4 pt-4">
+              <Select
+                value={editingSubcategory.category_id}
+                onValueChange={(val) => setEditingSubcategory({ ...editingSubcategory, category_id: val })}
+              >
+                <SelectTrigger data-testid="edit-subcategory-category">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {categories.map((cat) => (
+                    <SelectItem key={cat.id} value={cat.id}>{cat.name}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <Input
+                data-testid="edit-subcategory-name"
+                value={editingSubcategory.name}
+                onChange={(e) => setEditingSubcategory({ ...editingSubcategory, name: e.target.value })}
+                placeholder="Nombre de la subcategoría"
+              />
+              <div className="flex gap-2">
+                <Button onClick={() => setEditingSubcategory(null)} variant="outline" className="flex-1">
+                  Cancelar
+                </Button>
+                <Button data-testid="save-subcategory-btn" onClick={updateSubcategory} className="flex-1">
+                  Guardar
+                </Button>
+              </div>
+            </div>
+          </DialogContent>
+        </Dialog>
+      )}
+
+      {/* Edit Rule Dialog */}
+      {editingRule && (
+        <Dialog open={!!editingRule} onOpenChange={() => setEditingRule(null)}>
+          <DialogContent className="max-w-2xl">
+            <DialogHeader>
+              <DialogTitle>Editar Regla</DialogTitle>
+            </DialogHeader>
+            <div className="space-y-4 pt-4">
+              <div className="grid grid-cols-2 gap-4">
+                <Select
+                  value={editingRule.source}
+                  onValueChange={(val) => setEditingRule({ ...editingRule, source: val })}
+                >
+                  <SelectTrigger data-testid="edit-rule-source">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="bank">Cuenta Bancaria</SelectItem>
+                    <SelectItem value="card">Tarjeta</SelectItem>
+                  </SelectContent>
+                </Select>
+                <Input
+                  data-testid="edit-rule-contains"
+                  value={editingRule.contains}
+                  onChange={(e) => setEditingRule({ ...editingRule, contains: e.target.value })}
+                  placeholder="Contiene texto..."
+                />
+                <Select
+                  value={editingRule.sign || 'any'}
+                  onValueChange={(val) => setEditingRule({ ...editingRule, sign: val === 'any' ? '' : val })}
+                >
+                  <SelectTrigger data-testid="edit-rule-sign">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="any">Cualquiera</SelectItem>
+                    <SelectItem value="+">Positivo (+)</SelectItem>
+                    <SelectItem value="-">Negativo (-)</SelectItem>
+                  </SelectContent>
+                </Select>
+                <Select
+                  value={editingRule.category_id}
+                  onValueChange={(val) => setEditingRule({ ...editingRule, category_id: val })}
+                >
+                  <SelectTrigger data-testid="edit-rule-category">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {categories.map((cat) => (
+                      <SelectItem key={cat.id} value={cat.id}>{cat.name}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="flex gap-2">
+                <Button onClick={() => setEditingRule(null)} variant="outline" className="flex-1">
+                  Cancelar
+                </Button>
+                <Button data-testid="save-rule-btn" onClick={updateRule} className="flex-1">
+                  Guardar
+                </Button>
+              </div>
+            </div>
+          </DialogContent>
+        </Dialog>
+      )}
     </div>
   );
 }
