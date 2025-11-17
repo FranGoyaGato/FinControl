@@ -26,6 +26,11 @@ export default function Settings() {
   const [newCategory, setNewCategory] = useState({ name: '' });
   const [newSubcategory, setNewSubcategory] = useState({ category_id: '', name: '' });
   const [newRule, setNewRule] = useState({ source: 'bank', contains: '', sign: '', category_id: '', priority: 0 });
+  
+  // Edit states
+  const [editingCategory, setEditingCategory] = useState(null);
+  const [editingSubcategory, setEditingSubcategory] = useState(null);
+  const [editingRule, setEditingRule] = useState(null);
 
   useEffect(() => {
     loadAll();
