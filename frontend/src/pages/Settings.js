@@ -218,6 +218,26 @@ export default function Settings() {
     }
   };
 
+  const updateRule = async () => {
+    if (!editingRule || !editingRule.contains || !editingRule.category_id) return;
+    try {
+      await axios.put(`${API}/rules/${editingRule.id}`, {
+        source: editingRule.source,
+        contains: editingRule.contains,
+        sign: editingRule.sign || null,
+        category_id: editingRule.category_id,
+        subcategory_id: editingRule.subcategory_id || null,
+        priority: editingRule.priority,
+        active: editingRule.active
+      });
+      toast.success('Regla actualizada');
+      setEditingRule(null);
+      loadRules();
+    } catch (error) {
+      toast.error('Error al actualizar regla');
+    }
+  };
+
   const deleteRule = async (id) => {
     try {
       await axios.delete(`${API}/rules/${id}`);
