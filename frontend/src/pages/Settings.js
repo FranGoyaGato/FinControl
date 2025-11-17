@@ -374,7 +374,7 @@ export default function Settings() {
                 </Button>
               </div>
               <div className="space-y-2">
-                {subcategories.map((sub) => (
+                {subcategories.sort((a, b) => a.name.localeCompare(b.name)).map((sub) => (
                   <div key={sub.id} className="flex items-center justify-between p-3 border border-gray-200 rounded-lg">
                     <div>
                       <span className="font-medium">{sub.name}</span>
