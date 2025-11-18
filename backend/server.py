@@ -545,7 +545,7 @@ async def parse_csv(file: UploadFile = File(...), import_type: str = Query(...),
             headers = [str(cell.value).strip().lower() if cell.value else '' for cell in ws.row(0)]
             detected_columns = headers.copy()
             
-            # Get data rows - map by position: A=fecha, C=concepto, D=importe
+            # Get data rows - map by position: A=fecha, B=concepto, C=importe
             for row_idx in range(1, ws.nrows):
                 # Check if we have enough columns
                 if ws.ncols < 2:  # At least need 2 columns
@@ -561,16 +561,16 @@ async def parse_csv(file: UploadFile = File(...), import_type: str = Query(...),
                     else:
                         fecha_val = str(fecha_cell.value).strip() if fecha_cell.value else ''
                 
-                # Column C (index 2) = concepto
+                # Column B (index 1) = concepto
                 concepto_val = ''
-                if ws.ncols > 2:
-                    concepto_cell = ws.cell(row_idx, 2)
+                if ws.ncols > 1:
+                    concepto_cell = ws.cell(row_idx, 1)
                     concepto_val = str(concepto_cell.value).strip() if concepto_cell.value else ''
                 
-                # Column D (index 3) = importe
+                # Column C (index 2) = importe
                 importe_val = '0'
-                if ws.ncols > 3:
-                    importe_cell = ws.cell(row_idx, 3)
+                if ws.ncols > 2:
+                    importe_cell = ws.cell(row_idx, 2)
                     importe_val = str(importe_cell.value) if importe_cell.value else '0'
                 
                 # Skip if all relevant columns are empty
