@@ -506,13 +506,27 @@ async def parse_csv(file: UploadFile = File(...), import_type: str = Query(...),
             
             # Get data rows - map by position: A=fecha, C=concepto, D=importe
             for row in ws.iter_rows(min_row=2, values_only=True):
-                if not row or len(row) < 4:
+                if not row:
                     continue
                 
+                # Ensure we have at least 4 columns, pad with None if needed
+                row_list = list(row) + [None] * (4 - len(row))
+                
+                # Skip if all relevant columns are empty
+                if not row_list[0] and not row_list[2] and not row_list[3]:
+                    continue
+                
+                # Handle date - might be datetime object from Excel
+                fecha_val = row_list[0]
+                if isinstance(fecha_val, datetime):
+                    fecha_str = fecha_val.strftime('%d/%m/%Y')
+                else:
+                    fecha_str = str(fecha_val).strip() if fecha_val is not None else ''
+                
                 row_dict = {
-                    'fecha': str(row[0]).strip() if row[0] is not None else '',
-                    'concepto': str(row[2]).strip() if row[2] is not None else '',
-                    'importe': str(row[3]) if row[3] is not None else '0'
+                    'fecha': fecha_str,
+                    'concepto': str(row_list[2]).strip() if row_list[2] is not None else '',
+                    'importe': str(row_list[3]) if row_list[3] is not None else '0'
                 }
                 rows.append(row_dict)
             
