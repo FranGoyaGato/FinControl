@@ -1,7 +1,7 @@
 {
-  "timestamp": "2025-11-07T17:46:24.553508",
-  "total_tests": 27,
-  "passed": 27,
+  "timestamp": "2025-11-18T19:17:49.463688",
+  "total_tests": 26,
+  "passed": 26,
   "failed": 0,
   "success_rate": "100.0%",
   "test_details": [
@@ -112,11 +112,6 @@
     },
     {
       "test": "Get Settings",
-      "status": "PASSED",
-      "code": 200
-    },
-    {
-      "test": "Delete Rule",
       "status": "PASSED",
       "code": 200
     },
