@@ -14,6 +14,7 @@ export default function CreditCards() {
   const [categories, setCategories] = useState([]);
   const [selectedCard, setSelectedCard] = useState('');
   const [searchTerm, setSearchTerm] = useState('');
+  const [searchType, setSearchType] = useState('concept'); // 'concept' or 'category'
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
