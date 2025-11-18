@@ -250,13 +250,48 @@ export default function Expenses() {
           <CardTitle>Resumen por Categoría</CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="space-y-3">
-            {Object.entries(groupedByCategory).map(([category, amount]) => (
-              <div key={category} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
-                <span className="font-medium text-gray-700">{category}</span>
-                <span className="font-semibold text-red-700">{formatCurrency(amount)}</span>
-              </div>
-            ))}
+          <div className="space-y-2">
+            {Object.values(groupedByCategory)
+              .sort((a, b) => a.name.localeCompare(b.name))
+              .map((categoryData) => {
+                const hasSubcategories = Object.keys(categoryData.subcategories).length > 0;
+                const isExpanded = expandedCategories[categoryData.id];
+                
+                return (
+                  <div key={categoryData.id} className="border border-gray-200 rounded-lg">
+                    <div 
+                      className={`flex items-center justify-between p-3 rounded-lg ${hasSubcategories ? 'cursor-pointer hover:bg-gray-50' : 'bg-gray-50'}`}
+                      onClick={() => hasSubcategories && setExpandedCategories({
+                        ...expandedCategories,
+                        [categoryData.id]: !isExpanded
+                      })}
+                    >
+                      <div className="flex items-center gap-2">
+                        {hasSubcategories && (
+                          isExpanded ? 
+                            <ChevronDown className="w-4 h-4 text-gray-500" /> : 
+                            <ChevronRight className="w-4 h-4 text-gray-500" />
+                        )}
+                        <span className="font-medium text-gray-700">{categoryData.name}</span>
+                      </div>
+                      <span className="font-semibold text-red-700">{formatCurrency(categoryData.total)}</span>
+                    </div>
+                    
+                    {hasSubcategories && isExpanded && (
+                      <div className="pl-8 pr-3 pb-3 space-y-2">
+                        {Object.entries(categoryData.subcategories)
+                          .sort(([a], [b]) => a.localeCompare(b))
+                          .map(([subName, subAmount]) => (
+                            <div key={subName} className="flex items-center justify-between py-2 text-sm">
+                              <span className="text-gray-600">• {subName}</span>
+                              <span className="font-medium text-red-600">{formatCurrency(subAmount)}</span>
+                            </div>
+                          ))}
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
           </div>
         </CardContent>
       </Card>
