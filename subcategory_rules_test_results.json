@@ -1,0 +1,111 @@
+{
+  "timestamp": "2025-11-18T19:17:43.702678",
+  "test_type": "subcategory_rules_comprehensive",
+  "total_tests": 20,
+  "passed": 20,
+  "failed": 0,
+  "success_rate": "100.0%",
+  "critical_failures": [],
+  "test_details": [
+    {
+      "test": "Crear cuenta bancaria",
+      "status": "PASSED",
+      "details": "ID: fcceac21-4af6-4936-a319-dfd44a8089ec"
+    },
+    {
+      "test": "Crear categor\u00eda Alimentaci\u00f3n",
+      "status": "PASSED",
+      "details": "ID: 4f340a73-4e7c-4489-86f1-a0e64b464c6e"
+    },
+    {
+      "test": "Crear subcategor\u00eda Supermercado",
+      "status": "PASSED",
+      "details": "ID: 3cb1bec6-3d0f-4923-bfc7-870ad95c58ea"
+    },
+    {
+      "test": "Crear subcategor\u00eda Restaurantes",
+      "status": "PASSED",
+      "details": "ID: 4936b09a-e089-431d-950f-a6c888c32e0e"
+    },
+    {
+      "test": "Crear transacci\u00f3n MERCADONA COMPRA",
+      "status": "PASSED",
+      "details": "ID: 4f4d1e9e-60d7-481e-88cd-ae5e67ed7dfc"
+    },
+    {
+      "test": "Crear transacci\u00f3n CARREFOUR TIENDA",
+      "status": "PASSED",
+      "details": "ID: cacf9d22-42f7-4997-915a-969c0e1f91c4"
+    },
+    {
+      "test": "Crear transacci\u00f3n BURGUER KING",
+      "status": "PASSED",
+      "details": "ID: cd9c9cba-1776-4c7a-ac5c-d1cfe9b9d821"
+    },
+    {
+      "test": "Crear regla MERCADONA con subcategor\u00eda",
+      "status": "PASSED",
+      "details": "ID: 9ef249c2-d499-47f2-9a97-97ea58375513, Aplicada a 1 transacci\u00f3n(es)"
+    },
+    {
+      "test": "Verificar categorizaci\u00f3n MERCADONA",
+      "status": "PASSED",
+      "details": "Transacci\u00f3n correctamente categorizada con subcategor\u00eda"
+    },
+    {
+      "test": "Crear regla CARREFOUR sin subcategor\u00eda",
+      "status": "PASSED",
+      "details": "ID: 87a80ef4-4b54-4444-bd08-cf69e99ef1fa, Aplicada a 1 transacci\u00f3n(es)"
+    },
+    {
+      "test": "Verificar categorizaci\u00f3n CARREFOUR",
+      "status": "PASSED",
+      "details": "Transacci\u00f3n correctamente categorizada sin subcategor\u00eda"
+    },
+    {
+      "test": "Actualizar regla CARREFOUR con subcategor\u00eda",
+      "status": "PASSED",
+      "details": "Aplicada retroactivamente a 1 transacci\u00f3n(es)"
+    },
+    {
+      "test": "Verificar actualizaci\u00f3n retroactiva CARREFOUR",
+      "status": "PASSED",
+      "details": "Transacci\u00f3n ahora tiene subcategor\u00eda asignada"
+    },
+    {
+      "test": "Crear regla BURGUER con mayor prioridad",
+      "status": "PASSED",
+      "details": "ID: 8ce52223-c87c-4b0f-bea1-3ae5ea9c349a, Aplicada a 1 transacci\u00f3n(es)"
+    },
+    {
+      "test": "Verificar categorizaci\u00f3n BURGUER KING",
+      "status": "PASSED",
+      "details": "Transacci\u00f3n correctamente categorizada con subcategor\u00eda Restaurantes"
+    },
+    {
+      "test": "Verificar reglas creadas",
+      "status": "PASSED",
+      "details": "Se encontraron las 3 reglas creadas"
+    },
+    {
+      "test": "Verificar subcategor\u00edas en reglas",
+      "status": "PASSED",
+      "details": "Todas las reglas tienen subcategor\u00edas correctas"
+    },
+    {
+      "test": "Verificar transacciones creadas",
+      "status": "PASSED",
+      "details": "Se encontraron las 3 transacciones de prueba"
+    },
+    {
+      "test": "Verificar categorizaci\u00f3n final",
+      "status": "PASSED",
+      "details": "Todas las transacciones tienen categor\u00eda y subcategor\u00eda"
+    },
+    {
+      "test": "Verificar logs del backend",
+      "status": "PASSED",
+      "details": "No se encontraron errores recientes en logs"
+    }
+  ]
+}
