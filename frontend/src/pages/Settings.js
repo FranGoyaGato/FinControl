@@ -228,7 +228,7 @@ export default function Settings() {
   const updateRule = async () => {
     if (!editingRule || !editingRule.contains || !editingRule.category_id) return;
     try {
-      await axios.put(`${API}/rules/${editingRule.id}`, {
+      const response = await axios.put(`${API}/rules/${editingRule.id}`, {
         source: editingRule.source,
         contains: editingRule.contains,
         sign: editingRule.sign || null,
@@ -237,7 +237,14 @@ export default function Settings() {
         priority: editingRule.priority,
         active: editingRule.active
       });
-      toast.success('Regla actualizada');
+      
+      const data = response.data;
+      if (data.applied_to_existing > 0) {
+        toast.success(`Regla actualizada y aplicada a ${data.applied_to_existing} movimiento(s)`);
+      } else {
+        toast.success('Regla actualizada (sin movimientos coincidentes)');
+      }
+      
       setEditingRule(null);
       loadRules();
     } catch (error) {
