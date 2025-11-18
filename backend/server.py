@@ -606,6 +606,11 @@ async def parse_csv(file: UploadFile = File(...), import_type: str = Query(...),
     else:
         raise HTTPException(status_code=400, detail="Formato de archivo no soportado. Use .csv, .xls o .xlsx")
     
+    # Log for debugging
+    logging.info(f"Parsed {len(rows)} rows from file: {filename}")
+    if rows:
+        logging.info(f"First row sample: {rows[0]}")
+    
     # Process rows
     preview = []
     
