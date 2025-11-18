@@ -139,16 +139,37 @@ export default function Expenses() {
   const filteredTransactions = transactions.filter(tx => {
     const matchesSearch = tx.concept.toLowerCase().includes(searchTerm.toLowerCase());
     const matchesCategory = !selectedCategory || tx.category_id === selectedCategory;
-    return matchesSearch && matchesCategory;
+    const matchesSubcategory = !selectedSubcategory || tx.subcategory_id === selectedSubcategory;
+    return matchesSearch && matchesCategory && matchesSubcategory;
   });
 
   const totalExpense = filteredTransactions.reduce((sum, tx) => sum + Math.abs(tx.amount), 0);
 
-  // Group by category
+  // Group by category with subcategories
   const groupedByCategory = filteredTransactions.reduce((acc, tx) => {
+    const catId = tx.category_id || 'uncategorized';
     const catName = getCategoryName(tx.category_id);
-    if (!acc[catName]) acc[catName] = 0;
-    acc[catName] += Math.abs(tx.amount);
+    
+    if (!acc[catId]) {
+      acc[catId] = {
+        id: catId,
+        name: catName,
+        total: 0,
+        subcategories: {}
+      };
+    }
+    
+    acc[catId].total += Math.abs(tx.amount);
+    
+    // Group by subcategory within category
+    if (tx.subcategory_id) {
+      const subName = getSubcategoryName(tx.subcategory_id);
+      if (!acc[catId].subcategories[subName]) {
+        acc[catId].subcategories[subName] = 0;
+      }
+      acc[catId].subcategories[subName] += Math.abs(tx.amount);
+    }
+    
     return acc;
   }, {});
 
