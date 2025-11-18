@@ -285,7 +285,7 @@ export default function Income() {
                               </SelectTrigger>
                               <SelectContent>
                                 <SelectItem value="none">Ninguna</SelectItem>
-                                {txSubcategories.map((sub) => (
+                                {txSubcategories.sort((a, b) => a.name.localeCompare(b.name)).map((sub) => (
                                   <SelectItem key={sub.id} value={sub.id}>{sub.name}</SelectItem>
                                 ))}
                               </SelectContent>
