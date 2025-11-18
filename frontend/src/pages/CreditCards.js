@@ -125,7 +125,7 @@ export default function CreditCards() {
     tx.concept.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
-  const totalAmount = filteredTransactions.reduce((sum, tx) => sum + Math.abs(tx.amount), 0);
+  const totalAmount = filteredTransactions.reduce((sum, tx) => sum + tx.amount, 0);
 
   return (
     <div className="space-y-6">
