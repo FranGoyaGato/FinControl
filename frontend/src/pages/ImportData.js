@@ -17,6 +17,7 @@ export default function ImportData() {
   const [file, setFile] = useState(null);
   const [preview, setPreview] = useState([]);
   const [categories, setCategories] = useState([]);
+  const [subcategories, setSubcategories] = useState([]);
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
