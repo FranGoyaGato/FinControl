@@ -122,11 +122,6 @@ export default function CreditCards() {
     }).format(value);
   };
 
-  const getCategoryName = (id) => {
-    const cat = categories.find(c => c.id === id);
-    return cat ? cat.name : '';
-  };
-
   const filteredTransactions = transactions.filter(tx => {
     if (!searchTerm) return true;
     
