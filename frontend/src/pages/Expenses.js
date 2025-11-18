@@ -340,7 +340,7 @@ export default function Expenses() {
                               <SelectValue placeholder="Sin categoría" />
                             </SelectTrigger>
                             <SelectContent>
-                              {categories.map((cat) => (
+                              {categories.sort((a, b) => a.name.localeCompare(b.name)).map((cat) => (
                                 <SelectItem key={cat.id} value={cat.id}>{cat.name}</SelectItem>
                               ))}
                             </SelectContent>
@@ -357,7 +357,7 @@ export default function Expenses() {
                               </SelectTrigger>
                               <SelectContent>
                                 <SelectItem value="none">Ninguna</SelectItem>
-                                {txSubcategories.map((sub) => (
+                                {txSubcategories.sort((a, b) => a.name.localeCompare(b.name)).map((sub) => (
                                   <SelectItem key={sub.id} value={sub.id}>{sub.name}</SelectItem>
                                 ))}
                               </SelectContent>
