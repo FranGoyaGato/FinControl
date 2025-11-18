@@ -517,7 +517,7 @@ export default function Settings() {
                     <SelectItem value="-">Negativo (-)</SelectItem>
                   </SelectContent>
                 </Select>
-                <Select value={newRule.category_id} onValueChange={(val) => setNewRule({ ...newRule, category_id: val })}>
+                <Select value={newRule.category_id} onValueChange={(val) => setNewRule({ ...newRule, category_id: val, subcategory_id: '' })}>
                   <SelectTrigger data-testid="rule-category-select">
                     <SelectValue placeholder="Categoría" />
                   </SelectTrigger>
@@ -527,6 +527,22 @@ export default function Settings() {
                     ))}
                   </SelectContent>
                 </Select>
+                {newRule.category_id && subcategories.filter(s => s.category_id === newRule.category_id).length > 0 && (
+                  <Select value={newRule.subcategory_id || 'none'} onValueChange={(val) => setNewRule({ ...newRule, subcategory_id: val === 'none' ? '' : val })}>
+                    <SelectTrigger data-testid="rule-subcategory-select">
+                      <SelectValue placeholder="Subcategoría (opcional)" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="none">Ninguna</SelectItem>
+                      {subcategories
+                        .filter(s => s.category_id === newRule.category_id)
+                        .sort((a, b) => a.name.localeCompare(b.name))
+                        .map((sub) => (
+                          <SelectItem key={sub.id} value={sub.id}>{sub.name}</SelectItem>
+                        ))}
+                    </SelectContent>
+                  </Select>
+                )}
               </div>
               <Button data-testid="add-rule-btn" onClick={createRule} className="w-full">
                 <Plus className="w-4 h-4 mr-1" /> Agregar Regla
