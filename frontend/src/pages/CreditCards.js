@@ -118,7 +118,7 @@ export default function CreditCards() {
     return new Intl.NumberFormat('es-ES', {
       style: 'currency',
       currency: 'EUR'
-    }).format(Math.abs(value));
+    }).format(value);
   };
 
   const filteredTransactions = transactions.filter(tx =>
