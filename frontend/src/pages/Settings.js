@@ -25,7 +25,7 @@ export default function Settings() {
   const [newCard, setNewCard] = useState({ name: '', last4: '' });
   const [newCategory, setNewCategory] = useState({ name: '' });
   const [newSubcategory, setNewSubcategory] = useState({ category_id: '', name: '' });
-  const [newRule, setNewRule] = useState({ source: 'bank', contains: '', sign: '', category_id: '', priority: 0 });
+  const [newRule, setNewRule] = useState({ source: 'bank', contains: '', sign: '', category_id: '', subcategory_id: '', priority: 0 });
   
   // Edit states
   const [editingCategory, setEditingCategory] = useState(null);
