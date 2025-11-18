@@ -101,3 +101,73 @@
 #====================================================================================================
 # Testing Data - Main Agent and testing sub agent both should log testing data below this section
 #====================================================================================================
+
+user_problem_statement: "Implementar selector de subcategorías en formularios de creación y edición de reglas de categorización. Cuando el usuario crea o edita una regla, debe poder seleccionar opcionalmente una subcategoría además de la categoría principal."
+
+backend:
+  - task: "API endpoint para crear reglas con subcategory_id"
+    implemented: true
+    working: "NA"
+    file: "/app/backend/server.py"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: true
+    status_history:
+      - working: "NA"
+        agent: "main"
+        comment: "Endpoint POST /api/rules ya soporta subcategory_id en el modelo. Necesita verificarse que las reglas con subcategorías se aplican retroactivamente."
+  
+  - task: "API endpoint para actualizar reglas con subcategory_id"
+    implemented: true
+    working: "NA"
+    file: "/app/backend/server.py"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: true
+    status_history:
+      - working: "NA"
+        agent: "main"
+        comment: "Endpoint PUT /api/rules/{rule_id} ya soporta subcategory_id. Necesita verificarse que las actualizaciones se aplican retroactivamente."
+
+frontend:
+  - task: "Selector de subcategorías en formulario 'Agregar Regla'"
+    implemented: true
+    working: "NA"
+    file: "/app/frontend/src/pages/Settings.js"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: true
+    status_history:
+      - working: "NA"
+        agent: "main"
+        comment: "Se agregó un Select condicional para subcategorías que aparece cuando la categoría seleccionada tiene subcategorías. El campo se resetea al cambiar de categoría. Líneas ~530-545."
+  
+  - task: "Selector de subcategorías en modal 'Editar Regla'"
+    implemented: true
+    working: "NA"
+    file: "/app/frontend/src/pages/Settings.js"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: true
+    status_history:
+      - working: "NA"
+        agent: "main"
+        comment: "Se agregó un Select condicional para subcategorías en el modal de edición. Líneas ~700-720 aproximadamente."
+
+metadata:
+  created_by: "main_agent"
+  version: "1.0"
+  test_sequence: 1
+  run_ui: false
+
+test_plan:
+  current_focus:
+    - "API endpoint para crear reglas con subcategory_id"
+    - "API endpoint para actualizar reglas con subcategory_id"
+  stuck_tasks: []
+  test_all: false
+  test_priority: "high_first"
+
+agent_communication:
+  - agent: "main"
+    message: "He implementado selectores de subcategorías en los formularios de crear y editar reglas en Settings.js. El backend ya soportaba subcategory_id en el modelo de reglas. Necesito que verifiques: 1) Crear categorías y subcategorías, 2) Crear reglas con y sin subcategorías, 3) Verificar que las reglas con subcategorías se aplican retroactivamente a transacciones existentes, 4) Actualizar reglas agregando/cambiando subcategorías y verificar aplicación retroactiva."
