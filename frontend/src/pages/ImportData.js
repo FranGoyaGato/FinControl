@@ -24,6 +24,7 @@ export default function ImportData() {
     loadAccounts();
     loadCards();
     loadCategories();
+    loadSubcategories();
   }, []);
 
   const loadAccounts = async () => {
