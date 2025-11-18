@@ -218,7 +218,7 @@ export default function Settings() {
         toast.success('Regla creada (sin movimientos coincidentes)');
       }
       
-      setNewRule({ source: 'bank', contains: '', sign: '', category_id: '', priority: 0 });
+      setNewRule({ source: 'bank', contains: '', sign: '', category_id: '', subcategory_id: '', priority: 0 });
       loadRules();
     } catch (error) {
       toast.error('Error al crear regla');
