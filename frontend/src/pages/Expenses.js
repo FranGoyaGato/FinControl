@@ -226,12 +226,12 @@ export default function Expenses() {
                 ))}
               </SelectContent>
             </Select>
-            <Select value={selectedSubcategory} onValueChange={setSelectedSubcategory}>
+            <Select value={selectedSubcategory || 'all'} onValueChange={(val) => setSelectedSubcategory(val === 'all' ? '' : val)}>
               <SelectTrigger data-testid="subcategory-filter-select-expenses">
                 <SelectValue placeholder="Filtrar por subcategoría" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="">Todas las subcategorías</SelectItem>
+                <SelectItem value="all">Todas las subcategorías</SelectItem>
                 {subcategories
                   .filter(sub => !selectedCategory || sub.category_id === selectedCategory)
                   .sort((a, b) => a.name.localeCompare(b.name))
