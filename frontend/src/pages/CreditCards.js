@@ -196,16 +196,27 @@ export default function CreditCards() {
           {/* Search */}
           <Card data-testid="card-search" className="border border-gray-200">
             <CardContent className="pt-6">
-              <div className="relative">
-                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
-                <input
-                  data-testid="search-card-transactions-input"
-                  type="text"
-                  placeholder="Buscar por concepto..."
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
-                  className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                />
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <Select value={searchType} onValueChange={setSearchType}>
+                  <SelectTrigger data-testid="search-type-select">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="concept">Buscar por Concepto</SelectItem>
+                    <SelectItem value="category">Buscar por Categoría</SelectItem>
+                  </SelectContent>
+                </Select>
+                <div className="relative md:col-span-2">
+                  <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
+                  <input
+                    data-testid="search-card-transactions-input"
+                    type="text"
+                    placeholder={searchType === 'concept' ? 'Buscar por concepto...' : 'Buscar por categoría...'}
+                    value={searchTerm}
+                    onChange={(e) => setSearchTerm(e.target.value)}
+                    className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                  />
+                </div>
               </div>
             </CardContent>
           </Card>
