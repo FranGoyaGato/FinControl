@@ -172,7 +172,7 @@ export default function CreditCards() {
           <Card className="border border-gray-200 bg-gradient-to-br from-indigo-50 to-purple-50">
             <CardContent className="pt-6">
               <div className="text-sm text-gray-600 mb-1">Total Movimientos</div>
-              <div className="text-3xl font-bold text-indigo-700" style={{ fontFamily: 'Space Grotesk, sans-serif' }}>
+              <div className={`text-3xl font-bold ${totalAmount < 0 ? 'text-red-700' : 'text-blue-700'}`} style={{ fontFamily: 'Space Grotesk, sans-serif' }}>
                 {formatCurrency(totalAmount)}
               </div>
               <div className="text-sm text-gray-600 mt-2">{filteredTransactions.length} transacciones</div>
