@@ -328,11 +328,65 @@ async def delete_subcategory(subcategory_id: str):
 
 
 # --- RULES ---
-@api_router.post("/rules", response_model=Rule)
+@api_router.post("/rules")
 async def create_rule(input: RuleCreate):
     rule = Rule(**input.model_dump())
     await db.rules.insert_one(rule.model_dump())
-    return rule
+    
+    # Apply rule to existing transactions
+    updated_count = 0
+    
+    if input.source == 'bank':
+        # Find matching transactions
+        query = {}
+        
+        # Match concept (case insensitive)
+        if input.contains:
+            query['concept'] = {'$regex': input.contains, '$options': 'i'}
+        
+        # Match sign if specified
+        if input.sign == '+':
+            query['amount'] = {'$gt': 0}
+        elif input.sign == '-':
+            query['amount'] = {'$lt': 0}
+        
+        # Update all matching transactions
+        result = await db.transactions.update_many(
+            query,
+            {'$set': {
+                'category_id': input.category_id,
+                'subcategory_id': input.subcategory_id
+            }}
+        )
+        updated_count = result.modified_count
+        
+    elif input.source == 'card':
+        # Find matching card transactions
+        query = {}
+        
+        if input.contains:
+            query['concept'] = {'$regex': input.contains, '$options': 'i'}
+        
+        if input.sign == '+':
+            query['amount'] = {'$gt': 0}
+        elif input.sign == '-':
+            query['amount'] = {'$lt': 0}
+        
+        # Update all matching card transactions
+        result = await db.card_transactions.update_many(
+            query,
+            {'$set': {
+                'category_id': input.category_id,
+                'subcategory_id': input.subcategory_id
+            }}
+        )
+        updated_count = result.modified_count
+    
+    return {
+        'rule': rule.model_dump(),
+        'applied_to_existing': updated_count,
+        'message': f'Regla creada y aplicada a {updated_count} movimiento(s) existente(s)'
+    }
 
 @api_router.get("/rules", response_model=List[Rule])
 async def get_rules():
