@@ -209,8 +209,15 @@ export default function Settings() {
   const createRule = async () => {
     if (!newRule.contains || !newRule.category_id) return;
     try {
-      await axios.post(`${API}/rules`, newRule);
-      toast.success('Regla creada');
+      const response = await axios.post(`${API}/rules`, newRule);
+      const data = response.data;
+      
+      if (data.applied_to_existing > 0) {
+        toast.success(`Regla creada y aplicada a ${data.applied_to_existing} movimiento(s) existente(s)`);
+      } else {
+        toast.success('Regla creada (sin movimientos coincidentes)');
+      }
+      
       setNewRule({ source: 'bank', contains: '', sign: '', category_id: '', priority: 0 });
       loadRules();
     } catch (error) {
