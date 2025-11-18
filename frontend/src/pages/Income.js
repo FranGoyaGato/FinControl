@@ -198,7 +198,7 @@ export default function Income() {
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">Todas las categorías</SelectItem>
-                {categories.map((cat) => (
+                {categories.sort((a, b) => a.name.localeCompare(b.name)).map((cat) => (
                   <SelectItem key={cat.id} value={cat.id}>{cat.name}</SelectItem>
                 ))}
               </SelectContent>
