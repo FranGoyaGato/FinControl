@@ -54,6 +54,15 @@ export default function ImportData() {
     }
   };
 
+  const loadSubcategories = async () => {
+    try {
+      const response = await axios.get(`${API}/subcategories`);
+      setSubcategories(response.data);
+    } catch (error) {
+      console.error('Error loading subcategories:', error);
+    }
+  };
+
   const handleFileChange = (e) => {
     const selectedFile = e.target.files[0];
     if (selectedFile) {
