@@ -203,7 +203,7 @@ export default function Expenses() {
       {/* Filters */}
       <Card data-testid="expenses-filters" className="border border-gray-200">
         <CardContent className="pt-6">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <div className="relative">
               <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
               <input
@@ -215,15 +215,29 @@ export default function Expenses() {
                 className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-500"
               />
             </div>
-            <Select value={selectedCategory || "all"} onValueChange={(val) => setSelectedCategory(val === "all" ? "" : val)}>
+            <Select value={selectedCategory} onValueChange={(val) => { setSelectedCategory(val); setSelectedSubcategory(''); }}>
               <SelectTrigger data-testid="category-filter-select-expenses">
                 <SelectValue placeholder="Filtrar por categoría" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="all">Todas las categorías</SelectItem>
-                {categories.map((cat) => (
+                <SelectItem value="">Todas las categorías</SelectItem>
+                {categories.sort((a, b) => a.name.localeCompare(b.name)).map((cat) => (
                   <SelectItem key={cat.id} value={cat.id}>{cat.name}</SelectItem>
                 ))}
+              </SelectContent>
+            </Select>
+            <Select value={selectedSubcategory} onValueChange={setSelectedSubcategory}>
+              <SelectTrigger data-testid="subcategory-filter-select-expenses">
+                <SelectValue placeholder="Filtrar por subcategoría" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="">Todas las subcategorías</SelectItem>
+                {subcategories
+                  .filter(sub => !selectedCategory || sub.category_id === selectedCategory)
+                  .sort((a, b) => a.name.localeCompare(b.name))
+                  .map((sub) => (
+                    <SelectItem key={sub.id} value={sub.id}>{sub.name}</SelectItem>
+                  ))}
               </SelectContent>
             </Select>
           </div>
