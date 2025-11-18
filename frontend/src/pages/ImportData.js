@@ -316,7 +316,7 @@ export default function ImportData() {
                               <SelectValue placeholder="Sin categoría" />
                             </SelectTrigger>
                             <SelectContent>
-                              {categories.map((cat) => (
+                              {categories.sort((a, b) => a.name.localeCompare(b.name)).map((cat) => (
                                 <SelectItem key={cat.id} value={cat.id}>{cat.name}</SelectItem>
                               ))}
                             </SelectContent>
