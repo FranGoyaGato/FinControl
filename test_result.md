@@ -107,27 +107,33 @@ user_problem_statement: "Implementar selector de subcategorías en formularios d
 backend:
   - task: "API endpoint para crear reglas con subcategory_id"
     implemented: true
-    working: "NA"
+    working: true
     file: "/app/backend/server.py"
     stuck_count: 0
     priority: "high"
-    needs_retesting: true
+    needs_retesting: false
     status_history:
       - working: "NA"
         agent: "main"
         comment: "Endpoint POST /api/rules ya soporta subcategory_id en el modelo. Necesita verificarse que las reglas con subcategorías se aplican retroactivamente."
+      - working: true
+        agent: "testing"
+        comment: "✅ PRUEBA EXHAUSTIVA COMPLETADA: Endpoint POST /api/rules funciona correctamente con subcategory_id. Verificado: 1) Creación de reglas con subcategorías, 2) Aplicación retroactiva a transacciones existentes (applied_to_existing: 1), 3) Categorización correcta de transacciones con category_id y subcategory_id. Probado con datos reales: MERCADONA -> Supermercado, CARREFOUR -> sin subcategoría inicialmente."
   
   - task: "API endpoint para actualizar reglas con subcategory_id"
     implemented: true
-    working: "NA"
+    working: true
     file: "/app/backend/server.py"
     stuck_count: 0
     priority: "high"
-    needs_retesting: true
+    needs_retesting: false
     status_history:
       - working: "NA"
         agent: "main"
         comment: "Endpoint PUT /api/rules/{rule_id} ya soporta subcategory_id. Necesita verificarse que las actualizaciones se aplican retroactivamente."
+      - working: true
+        agent: "testing"
+        comment: "✅ PRUEBA EXHAUSTIVA COMPLETADA: Endpoint PUT /api/rules/{rule_id} funciona perfectamente. Verificado: 1) Actualización de reglas agregando subcategory_id, 2) Aplicación retroactiva correcta a transacciones existentes, 3) Transacciones actualizadas con nueva subcategoría. Probado actualizando regla CARREFOUR de sin subcategoría a subcategoría Supermercado - aplicación retroactiva exitosa."
 
 frontend:
   - task: "Selector de subcategorías en formulario 'Agregar Regla'"
