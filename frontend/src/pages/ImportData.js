@@ -337,7 +337,7 @@ export default function ImportData() {
                               </SelectTrigger>
                               <SelectContent>
                                 <SelectItem value="none">Ninguna</SelectItem>
-                                {categorySubcategories.map((sub) => (
+                                {categorySubcategories.sort((a, b) => a.name.localeCompare(b.name)).map((sub) => (
                                   <SelectItem key={sub.id} value={sub.id}>{sub.name}</SelectItem>
                                 ))}
                               </SelectContent>
