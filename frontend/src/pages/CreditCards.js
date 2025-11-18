@@ -227,7 +227,9 @@ export default function CreditCards() {
                         <tr key={tx.id} data-testid={`card-tx-row-${tx.id}`} className="border-b border-gray-100">
                           <td className="py-3 text-sm">{new Date(tx.date).toLocaleDateString('es-ES')}</td>
                           <td className="py-3 text-sm">{tx.concept}</td>
-                          <td className="py-3 text-sm font-semibold text-indigo-700">{formatCurrency(tx.amount)}</td>
+                          <td className={`py-3 text-sm font-semibold ${tx.amount < 0 ? 'text-red-600' : 'text-blue-600'}`}>
+                            {formatCurrency(tx.amount)}
+                          </td>
                           <td className="py-3 text-sm">
                             <Select
                               value={tx.category_id || ''}
