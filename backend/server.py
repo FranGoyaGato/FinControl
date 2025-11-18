@@ -547,24 +547,35 @@ async def parse_csv(file: UploadFile = File(...), import_type: str = Query(...),
             
             # Get data rows - map by position: A=fecha, C=concepto, D=importe
             for row_idx in range(1, ws.nrows):
-                if ws.ncols < 4:
+                # Check if we have enough columns
+                if ws.ncols < 2:  # At least need 2 columns
                     continue
                 
                 # Column A (index 0) = fecha
-                fecha_cell = ws.cell(row_idx, 0)
-                if fecha_cell.ctype == xlrd.XL_CELL_DATE:
-                    date_tuple = xlrd.xldate_as_tuple(fecha_cell.value, wb.datemode)
-                    fecha_val = f"{date_tuple[2]:02d}/{date_tuple[1]:02d}/{date_tuple[0]}"
-                else:
-                    fecha_val = str(fecha_cell.value).strip() if fecha_cell.value else ''
+                fecha_val = ''
+                if ws.ncols > 0:
+                    fecha_cell = ws.cell(row_idx, 0)
+                    if fecha_cell.ctype == xlrd.XL_CELL_DATE:
+                        date_tuple = xlrd.xldate_as_tuple(fecha_cell.value, wb.datemode)
+                        fecha_val = f"{date_tuple[2]:02d}/{date_tuple[1]:02d}/{date_tuple[0]}"
+                    else:
+                        fecha_val = str(fecha_cell.value).strip() if fecha_cell.value else ''
                 
                 # Column C (index 2) = concepto
-                concepto_cell = ws.cell(row_idx, 2)
-                concepto_val = str(concepto_cell.value).strip() if concepto_cell.value else ''
+                concepto_val = ''
+                if ws.ncols > 2:
+                    concepto_cell = ws.cell(row_idx, 2)
+                    concepto_val = str(concepto_cell.value).strip() if concepto_cell.value else ''
                 
                 # Column D (index 3) = importe
-                importe_cell = ws.cell(row_idx, 3)
-                importe_val = str(importe_cell.value) if importe_cell.value else '0'
+                importe_val = '0'
+                if ws.ncols > 3:
+                    importe_cell = ws.cell(row_idx, 3)
+                    importe_val = str(importe_cell.value) if importe_cell.value else '0'
+                
+                # Skip if all relevant columns are empty
+                if not fecha_val and not concepto_val and importe_val == '0':
+                    continue
                 
                 row_dict = {
                     'fecha': fecha_val,
