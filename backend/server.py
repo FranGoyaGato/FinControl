@@ -504,16 +504,16 @@ async def parse_csv(file: UploadFile = File(...), import_type: str = Query(...),
             headers = [cell.value.strip().lower() if cell.value else '' for cell in ws[1]]
             detected_columns = headers.copy()
             
-            # Get data rows - map by position: A=fecha, C=concepto, D=importe
+            # Get data rows - map by position: A=fecha, B=concepto, C=importe
             for row in ws.iter_rows(min_row=2, values_only=True):
                 if not row:
                     continue
                 
-                # Ensure we have at least 4 columns, pad with None if needed
-                row_list = list(row) + [None] * (4 - len(row))
+                # Ensure we have at least 3 columns, pad with None if needed
+                row_list = list(row) + [None] * (3 - len(row))
                 
                 # Skip if all relevant columns are empty
-                if not row_list[0] and not row_list[2] and not row_list[3]:
+                if not row_list[0] and not row_list[1] and not row_list[2]:
                     continue
                 
                 # Handle date - might be datetime object from Excel
@@ -525,8 +525,8 @@ async def parse_csv(file: UploadFile = File(...), import_type: str = Query(...),
                 
                 row_dict = {
                     'fecha': fecha_str,
-                    'concepto': str(row_list[2]).strip() if row_list[2] is not None else '',
-                    'importe': str(row_list[3]) if row_list[3] is not None else '0'
+                    'concepto': str(row_list[1]).strip() if row_list[1] is not None else '',
+                    'importe': str(row_list[2]) if row_list[2] is not None else '0'
                 }
                 rows.append(row_dict)
             
