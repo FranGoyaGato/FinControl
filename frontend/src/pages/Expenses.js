@@ -15,6 +15,8 @@ export default function Expenses() {
   const [subcategories, setSubcategories] = useState([]);
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('');
+  const [selectedSubcategory, setSelectedSubcategory] = useState('');
+  const [expandedCategories, setExpandedCategories] = useState({});
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
