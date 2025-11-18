@@ -693,7 +693,7 @@ export default function Settings() {
                 </Select>
                 <Select
                   value={editingRule.category_id}
-                  onValueChange={(val) => setEditingRule({ ...editingRule, category_id: val })}
+                  onValueChange={(val) => setEditingRule({ ...editingRule, category_id: val, subcategory_id: '' })}
                 >
                   <SelectTrigger data-testid="edit-rule-category">
                     <SelectValue />
@@ -704,6 +704,25 @@ export default function Settings() {
                     ))}
                   </SelectContent>
                 </Select>
+                {editingRule.category_id && subcategories.filter(s => s.category_id === editingRule.category_id).length > 0 && (
+                  <Select
+                    value={editingRule.subcategory_id || 'none'}
+                    onValueChange={(val) => setEditingRule({ ...editingRule, subcategory_id: val === 'none' ? '' : val })}
+                  >
+                    <SelectTrigger data-testid="edit-rule-subcategory">
+                      <SelectValue placeholder="Subcategoría (opcional)" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="none">Ninguna</SelectItem>
+                      {subcategories
+                        .filter(s => s.category_id === editingRule.category_id)
+                        .sort((a, b) => a.name.localeCompare(b.name))
+                        .map((sub) => (
+                          <SelectItem key={sub.id} value={sub.id}>{sub.name}</SelectItem>
+                        ))}
+                    </SelectContent>
+                  </Select>
+                )}
               </div>
               <div className="flex gap-2">
                 <Button onClick={() => setEditingRule(null)} variant="outline" className="flex-1">
