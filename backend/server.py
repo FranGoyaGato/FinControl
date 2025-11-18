@@ -400,7 +400,7 @@ async def delete_rule(rule_id: str):
         raise HTTPException(status_code=404, detail="Rule not found")
     return {"message": "Rule deleted"}
 
-@api_router.put("/rules/{rule_id}", response_model=Rule)
+@api_router.put("/rules/{rule_id}")
 async def update_rule(rule_id: str, input: RuleCreate):
     result = await db.rules.find_one({"id": rule_id}, {"_id": 0})
     if not result:
@@ -409,7 +409,51 @@ async def update_rule(rule_id: str, input: RuleCreate):
     updated_data = input.model_dump()
     updated_data['id'] = rule_id
     await db.rules.replace_one({"id": rule_id}, updated_data)
-    return Rule(**updated_data)
+    
+    # Apply updated rule to existing transactions
+    updated_count = 0
+    
+    if input.source == 'bank':
+        query = {}
+        if input.contains:
+            query['concept'] = {'$regex': input.contains, '$options': 'i'}
+        if input.sign == '+':
+            query['amount'] = {'$gt': 0}
+        elif input.sign == '-':
+            query['amount'] = {'$lt': 0}
+        
+        result = await db.transactions.update_many(
+            query,
+            {'$set': {
+                'category_id': input.category_id,
+                'subcategory_id': input.subcategory_id
+            }}
+        )
+        updated_count = result.modified_count
+        
+    elif input.source == 'card':
+        query = {}
+        if input.contains:
+            query['concept'] = {'$regex': input.contains, '$options': 'i'}
+        if input.sign == '+':
+            query['amount'] = {'$gt': 0}
+        elif input.sign == '-':
+            query['amount'] = {'$lt': 0}
+        
+        result = await db.card_transactions.update_many(
+            query,
+            {'$set': {
+                'category_id': input.category_id,
+                'subcategory_id': input.subcategory_id
+            }}
+        )
+        updated_count = result.modified_count
+    
+    return {
+        'rule': updated_data,
+        'applied_to_existing': updated_count,
+        'message': f'Regla actualizada y aplicada a {updated_count} movimiento(s) existente(s)'
+    }
 
 
 # --- TRANSACTIONS ---
