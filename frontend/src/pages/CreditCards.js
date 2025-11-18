@@ -122,9 +122,22 @@ export default function CreditCards() {
     }).format(value);
   };
 
-  const filteredTransactions = transactions.filter(tx =>
-    tx.concept.toLowerCase().includes(searchTerm.toLowerCase())
-  );
+  const getCategoryName = (id) => {
+    const cat = categories.find(c => c.id === id);
+    return cat ? cat.name : '';
+  };
+
+  const filteredTransactions = transactions.filter(tx => {
+    if (!searchTerm) return true;
+    
+    if (searchType === 'concept') {
+      return tx.concept.toLowerCase().includes(searchTerm.toLowerCase());
+    } else if (searchType === 'category') {
+      const catName = getCategoryName(tx.category_id);
+      return catName.toLowerCase().includes(searchTerm.toLowerCase());
+    }
+    return true;
+  });
 
   const totalAmount = filteredTransactions.reduce((sum, tx) => sum + tx.amount, 0);
 
