@@ -26,7 +26,7 @@ function KPICard({ title, value, subtitle, icon: Icon, colorClass }) {
 export default function Dashboard() {
   const [accounts, setAccounts] = useState([]);
   const [selectedAccount, setSelectedAccount] = useState('all');
-  const [selectedMonth, setSelectedMonth] = useState(new Date().toISOString().slice(0, 7));
+  const [selectedPeriod, setSelectedPeriod] = useState(new Date().toISOString().slice(0, 7));
   const [kpis, setKpis] = useState({
     total_income: 0,
     total_expense: 0,
