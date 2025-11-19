@@ -133,18 +133,37 @@ export default function Dashboard() {
             </div>
             <div>
               <label className="text-sm font-medium text-gray-700 mb-2 block">Periodo</label>
-              <Select value={selectedPeriod} onValueChange={setSelectedPeriod}>
-                <SelectTrigger data-testid="period-select">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {generatePeriodOptions().map((option) => (
-                    <SelectItem key={option.value} value={option.value}>
-                      {option.label}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              <div className="space-y-2">
+                <div className="flex gap-2">
+                  <Button
+                    type="button"
+                    variant={viewType === 'month' ? 'default' : 'outline'}
+                    onClick={() => setViewType('month')}
+                    className="flex-1"
+                    data-testid="view-month-btn"
+                  >
+                    Mes
+                  </Button>
+                  <Button
+                    type="button"
+                    variant={viewType === 'year' ? 'default' : 'outline'}
+                    onClick={() => setViewType('year')}
+                    className="flex-1"
+                    data-testid="view-year-btn"
+                  >
+                    Año actual
+                  </Button>
+                </div>
+                {viewType === 'month' && (
+                  <input
+                    data-testid="month-input"
+                    type="month"
+                    value={selectedMonth}
+                    onChange={(e) => setSelectedMonth(e.target.value)}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                  />
+                )}
+              </div>
             </div>
           </div>
         </CardContent>
