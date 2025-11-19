@@ -16,6 +16,8 @@ export default function Expenses() {
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('');
   const [selectedSubcategory, setSelectedSubcategory] = useState('');
+  const [selectedMonth, setSelectedMonth] = useState('');
+  const [selectedYear, setSelectedYear] = useState('');
   const [expandedCategories, setExpandedCategories] = useState({});
   const [loading, setLoading] = useState(true);
 
