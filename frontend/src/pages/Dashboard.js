@@ -41,7 +41,7 @@ export default function Dashboard() {
 
   useEffect(() => {
     loadDashboardData();
-  }, [selectedAccount, selectedMonth]);
+  }, [selectedAccount, selectedPeriod]);
 
   const loadAccounts = async () => {
     try {
