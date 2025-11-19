@@ -202,7 +202,7 @@ export default function Dashboard() {
             <div>
               <h3 className="font-semibold text-indigo-900">Periodo seleccionado</h3>
               <p className="text-sm text-indigo-700 mt-1">
-                Mostrando datos de {new Date(selectedMonth + '-01').toLocaleDateString('es-ES', { month: 'long', year: 'numeric' })}
+                Mostrando datos de {getPeriodLabel()}
                 {selectedAccount !== 'all' && ` para la cuenta seleccionada`}
               </p>
             </div>
