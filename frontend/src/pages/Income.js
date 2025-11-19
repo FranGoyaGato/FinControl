@@ -193,7 +193,63 @@ export default function Income() {
         </CardContent>
       </Card>
 
-      {/* Filters */}
+      {/* Date Filters */}
+      <Card className="border border-gray-200">
+        <CardContent className="pt-6">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div>
+              <label className="text-sm font-medium text-gray-700 mb-2 block">Año</label>
+              <Select value={selectedYear} onValueChange={setSelectedYear}>
+                <SelectTrigger data-testid="year-filter-select">
+                  <SelectValue placeholder="Todos los años" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="">Todos los años</SelectItem>
+                  <SelectItem value="2025">2025</SelectItem>
+                  <SelectItem value="2024">2024</SelectItem>
+                  <SelectItem value="2023">2023</SelectItem>
+                  <SelectItem value="2022">2022</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div>
+              <label className="text-sm font-medium text-gray-700 mb-2 block">Mes</label>
+              <Select value={selectedMonth} onValueChange={setSelectedMonth} disabled={!selectedYear}>
+                <SelectTrigger data-testid="month-filter-select">
+                  <SelectValue placeholder="Todos los meses" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="">Todos los meses</SelectItem>
+                  <SelectItem value="1">Enero</SelectItem>
+                  <SelectItem value="2">Febrero</SelectItem>
+                  <SelectItem value="3">Marzo</SelectItem>
+                  <SelectItem value="4">Abril</SelectItem>
+                  <SelectItem value="5">Mayo</SelectItem>
+                  <SelectItem value="6">Junio</SelectItem>
+                  <SelectItem value="7">Julio</SelectItem>
+                  <SelectItem value="8">Agosto</SelectItem>
+                  <SelectItem value="9">Septiembre</SelectItem>
+                  <SelectItem value="10">Octubre</SelectItem>
+                  <SelectItem value="11">Noviembre</SelectItem>
+                  <SelectItem value="12">Diciembre</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="flex items-end">
+              <Button 
+                variant="outline" 
+                onClick={() => { setSelectedYear(''); setSelectedMonth(''); }}
+                className="w-full"
+                data-testid="clear-filters-btn"
+              >
+                Limpiar filtros
+              </Button>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Search and Category Filters */}
       <Card data-testid="income-filters" className="border border-gray-200">
         <CardContent className="pt-6">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
