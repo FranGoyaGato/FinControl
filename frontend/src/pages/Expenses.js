@@ -24,6 +24,9 @@ export default function Expenses() {
   useEffect(() => {
     loadCategories();
     loadSubcategories();
+  }, []);
+
+  useEffect(() => {
     loadTransactions();
   }, [selectedYear, selectedMonth]);
 
