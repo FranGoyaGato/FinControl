@@ -22,6 +22,9 @@ export default function Income() {
   useEffect(() => {
     loadCategories();
     loadSubcategories();
+  }, []);
+
+  useEffect(() => {
     loadTransactions();
   }, [selectedYear, selectedMonth]);
 
