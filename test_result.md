@@ -102,7 +102,7 @@
 # Testing Data - Main Agent and testing sub agent both should log testing data below this section
 #====================================================================================================
 
-user_problem_statement: "Implementar selector de subcategorías en formularios de creación y edición de reglas de categorización. Cuando el usuario crea o edita una regla, debe poder seleccionar opcionalmente una subcategoría además de la categoría principal."
+user_problem_statement: "1. [COMPLETADO] Implementar selector de subcategorías en formularios de creación y edición de reglas de categorización. 2. [NUEVO] Agregar opción 'Año actual' en el selector de periodo del Dashboard que muestre datos acumulados desde el 1 de enero hasta la fecha actual."
 
 backend:
   - task: "API endpoint para crear reglas con subcategory_id"
