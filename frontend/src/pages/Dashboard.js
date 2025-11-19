@@ -62,20 +62,19 @@ export default function Dashboard() {
         params.account_id = selectedAccount;
       }
       
-      if (selectedPeriod) {
-        if (selectedPeriod === 'year-current') {
-          // Año actual: desde 1 de enero hasta hoy
-          const currentYear = new Date().getFullYear();
-          const today = new Date().toISOString().split('T')[0];
-          params.date_from = `${currentYear}-01-01`;
-          params.date_to = today;
-        } else {
-          // Mes específico
-          const [year, month] = selectedPeriod.split('-');
-          params.date_from = `${year}-${month}-01`;
-          const lastDay = new Date(year, month, 0).getDate();
-          params.date_to = `${year}-${month}-${lastDay}`;
-        }
+      if (viewType === 'year') {
+        // Año actual: desde 1 de enero hasta hoy
+        const currentYear = new Date().getFullYear();
+        const today = new Date().toISOString().split('T')[0];
+        params.date_from = `${currentYear}-01-01`;
+        params.date_to = today;
+      } else if (selectedMonth) {
+        // Mes específico
+        const [year, month] = selectedMonth.split('-');
+        params.date_from = `${year}-${month}-01`;
+        // Corregir el cálculo del último día del mes
+        const lastDay = new Date(parseInt(year), parseInt(month), 0).getDate();
+        params.date_to = `${year}-${month}-${String(lastDay).padStart(2, '0')}`;
       }
       
       const response = await axios.get(`${API}/dashboard`, { params });
