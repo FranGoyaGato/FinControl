@@ -94,29 +94,14 @@ export default function Dashboard() {
     }).format(value);
   };
 
-  // Generar opciones de meses (últimos 12 meses + año actual)
-  const generatePeriodOptions = () => {
-    const options = [{ value: 'year-current', label: 'Año actual' }];
-    const today = new Date();
-    
-    for (let i = 0; i < 12; i++) {
-      const date = new Date(today.getFullYear(), today.getMonth() - i, 1);
-      const value = date.toISOString().slice(0, 7);
-      const label = date.toLocaleDateString('es-ES', { month: 'long', year: 'numeric' });
-      options.push({ value, label: label.charAt(0).toUpperCase() + label.slice(1) });
-    }
-    
-    return options;
-  };
-
-  const isYearView = selectedPeriod === 'year-current';
+  const isYearView = viewType === 'year';
 
   const getPeriodLabel = () => {
     if (isYearView) {
       const currentYear = new Date().getFullYear();
       return `Año ${currentYear} (hasta hoy)`;
     }
-    const date = new Date(selectedPeriod + '-01');
+    const date = new Date(selectedMonth + '-01');
     const label = date.toLocaleDateString('es-ES', { month: 'long', year: 'numeric' });
     return label.charAt(0).toUpperCase() + label.slice(1);
   };
