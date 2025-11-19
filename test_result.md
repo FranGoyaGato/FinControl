@@ -165,6 +165,18 @@ frontend:
       - working: true
         agent: "testing"
         comment: "✅ FUNCIONALIDAD VERIFICADA: Modal de edición se abre correctamente. Minor: En el modal de edición probado, el selector de subcategorías no era visible porque la regla editada pertenecía a una categoría sin subcategorías (comportamiento correcto). La implementación del código muestra que el selector aparece condicionalmente cuando editingRule.category_id tiene subcategorías asociadas (líneas 707-725). Lógica condicional funciona correctamente."
+  
+  - task: "Opción 'Año actual' en selector de periodo del Dashboard"
+    implemented: true
+    working: "NA"
+    file: "/app/frontend/src/pages/Dashboard.js"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: true
+    status_history:
+      - working: "NA"
+        agent: "main"
+        comment: "Implementado selector de periodo con opción 'Año actual' que calcula desde 1-enero-{año actual} hasta fecha actual. Títulos de KPIs cambian dinámicamente. Screenshots muestran funcionamiento correcto con datos del año completo (Ingresos: 79.358€, Gastos: 78.018€, Flujo: 1339€)."
 
 metadata:
   created_by: "main_agent"
