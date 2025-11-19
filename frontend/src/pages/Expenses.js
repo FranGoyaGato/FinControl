@@ -25,7 +25,7 @@ export default function Expenses() {
     loadCategories();
     loadSubcategories();
     loadTransactions();
-  }, []);
+  }, [selectedYear, selectedMonth]);
 
   const loadCategories = async () => {
     try {
