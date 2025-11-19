@@ -168,15 +168,18 @@ frontend:
   
   - task: "Opción 'Año actual' en selector de periodo del Dashboard"
     implemented: true
-    working: "NA"
+    working: true
     file: "/app/frontend/src/pages/Dashboard.js"
     stuck_count: 0
     priority: "high"
-    needs_retesting: true
+    needs_retesting: false
     status_history:
       - working: "NA"
         agent: "main"
         comment: "Implementado selector de periodo con opción 'Año actual' que calcula desde 1-enero-{año actual} hasta fecha actual. Títulos de KPIs cambian dinámicamente. Screenshots muestran funcionamiento correcto con datos del año completo (Ingresos: 79.358€, Gastos: 78.018€, Flujo: 1339€)."
+      - working: true
+        agent: "testing"
+        comment: "✅ PRUEBA EXHAUSTIVA COMPLETADA CON ÉXITO: Funcionalidad 'Año actual' funciona perfectamente. VERIFICACIONES EXITOSAS: 1) Selector de periodo visible con 'Año actual' como primera opción, 2) Títulos de KPIs cambian dinámicamente ('Ingresos del Año', 'Gastos del Año'), 3) Valores correctos mostrados (79.358€ ingresos, 78.018€ gastos, 1339€ flujo neto), 4) Card de periodo muestra 'Año 2025 (hasta hoy)', 5) Cambio a vista mensual restaura títulos 'del Mes', 6) Valores diferentes entre año y mes (correcto), 7) Filtro por cuenta funciona con año actual, 8) Sin errores en consola. Todas las 6 fases de testing completadas exitosamente."
 
 metadata:
   created_by: "main_agent"
