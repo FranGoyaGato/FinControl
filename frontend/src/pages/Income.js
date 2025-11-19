@@ -23,7 +23,7 @@ export default function Income() {
     loadCategories();
     loadSubcategories();
     loadTransactions();
-  }, []);
+  }, [selectedYear, selectedMonth]);
 
   const loadCategories = async () => {
     try {
