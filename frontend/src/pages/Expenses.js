@@ -48,9 +48,20 @@ export default function Expenses() {
   const loadTransactions = async () => {
     try {
       setLoading(true);
-      const response = await axios.get(`${API}/transactions`, {
-        params: { type: 'expense' }
-      });
+      const params = { type: 'expense' };
+      
+      // Add date filters if selected
+      if (selectedYear && selectedMonth) {
+        const month = selectedMonth.padStart(2, '0');
+        params.date_from = `${selectedYear}-${month}-01`;
+        const lastDay = new Date(parseInt(selectedYear), parseInt(selectedMonth), 0).getDate();
+        params.date_to = `${selectedYear}-${month}-${String(lastDay).padStart(2, '0')}`;
+      } else if (selectedYear) {
+        params.date_from = `${selectedYear}-01-01`;
+        params.date_to = `${selectedYear}-12-31`;
+      }
+      
+      const response = await axios.get(`${API}/transactions`, { params });
       setTransactions(response.data);
     } catch (error) {
       console.error('Error loading transactions:', error);
