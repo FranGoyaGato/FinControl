@@ -147,14 +147,19 @@ export default function Dashboard() {
               </Select>
             </div>
             <div>
-              <label className="text-sm font-medium text-gray-700 mb-2 block">Mes</label>
-              <input
-                data-testid="month-input"
-                type="month"
-                value={selectedMonth}
-                onChange={(e) => setSelectedMonth(e.target.value)}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500"
-              />
+              <label className="text-sm font-medium text-gray-700 mb-2 block">Periodo</label>
+              <Select value={selectedPeriod} onValueChange={setSelectedPeriod}>
+                <SelectTrigger data-testid="period-select">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {generatePeriodOptions().map((option) => (
+                    <SelectItem key={option.value} value={option.value}>
+                      {option.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
           </div>
         </CardContent>
