@@ -134,7 +134,8 @@ export default function Expenses() {
       style: 'currency',
       currency: 'EUR',
       minimumFractionDigits: 2,
-      maximumFractionDigits: 2
+      maximumFractionDigits: 2,
+      useGrouping: true
     }).format(Math.abs(value));
   };
 
