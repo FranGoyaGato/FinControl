@@ -134,7 +134,8 @@ export default function ImportData() {
       style: 'currency',
       currency: 'EUR',
       minimumFractionDigits: 2,
-      maximumFractionDigits: 2
+      maximumFractionDigits: 2,
+      useGrouping: true
     }).format(value);
   };
 
