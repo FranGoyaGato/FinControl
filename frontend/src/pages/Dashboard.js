@@ -173,13 +173,13 @@ export default function Dashboard() {
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
           <KPICard
-            title="Ingresos del Mes"
+            title={isYearView ? "Ingresos del Año" : "Ingresos del Mes"}
             value={formatCurrency(kpis.total_income)}
             icon={TrendingUp}
             colorClass="text-green-600"
           />
           <KPICard
-            title="Gastos del Mes"
+            title={isYearView ? "Gastos del Año" : "Gastos del Mes"}
             value={formatCurrency(kpis.total_expense)}
             icon={TrendingDown}
             colorClass="text-red-600"
