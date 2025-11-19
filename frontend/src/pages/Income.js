@@ -15,6 +15,8 @@ export default function Income() {
   const [subcategories, setSubcategories] = useState([]);
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('');
+  const [selectedMonth, setSelectedMonth] = useState('');
+  const [selectedYear, setSelectedYear] = useState('');
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
