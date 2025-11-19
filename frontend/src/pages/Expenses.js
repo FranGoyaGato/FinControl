@@ -225,12 +225,12 @@ export default function Expenses() {
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <div>
               <label className="text-sm font-medium text-gray-700 mb-2 block">Año</label>
-              <Select value={selectedYear} onValueChange={setSelectedYear}>
+              <Select value={selectedYear || 'all'} onValueChange={(val) => setSelectedYear(val === 'all' ? '' : val)}>
                 <SelectTrigger data-testid="year-filter-select-expenses">
                   <SelectValue placeholder="Todos los años" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="">Todos los años</SelectItem>
+                  <SelectItem value="all">Todos los años</SelectItem>
                   <SelectItem value="2025">2025</SelectItem>
                   <SelectItem value="2024">2024</SelectItem>
                   <SelectItem value="2023">2023</SelectItem>
@@ -240,12 +240,12 @@ export default function Expenses() {
             </div>
             <div>
               <label className="text-sm font-medium text-gray-700 mb-2 block">Mes</label>
-              <Select value={selectedMonth} onValueChange={setSelectedMonth} disabled={!selectedYear}>
+              <Select value={selectedMonth || 'all'} onValueChange={(val) => setSelectedMonth(val === 'all' ? '' : val)} disabled={!selectedYear}>
                 <SelectTrigger data-testid="month-filter-select-expenses">
                   <SelectValue placeholder="Todos los meses" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="">Todos los meses</SelectItem>
+                  <SelectItem value="all">Todos los meses</SelectItem>
                   <SelectItem value="1">Enero</SelectItem>
                   <SelectItem value="2">Febrero</SelectItem>
                   <SelectItem value="3">Marzo</SelectItem>
