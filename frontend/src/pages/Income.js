@@ -155,7 +155,14 @@ export default function Income() {
 
   const filteredTransactions = transactions.filter(tx => {
     const matchesSearch = tx.concept.toLowerCase().includes(searchTerm.toLowerCase());
-    const matchesCategory = !selectedCategory || tx.category_id === selectedCategory;
+    let matchesCategory = true;
+    
+    if (selectedCategory === 'uncategorized') {
+      matchesCategory = !tx.category_id || tx.category_id === '';
+    } else if (selectedCategory) {
+      matchesCategory = tx.category_id === selectedCategory;
+    }
+    
     return matchesSearch && matchesCategory;
   });
 
