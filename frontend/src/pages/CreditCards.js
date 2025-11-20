@@ -127,15 +127,26 @@ export default function CreditCards() {
   };
 
   const filteredTransactions = transactions.filter(tx => {
-    if (!searchTerm) return true;
-    
-    if (searchType === 'concept') {
-      return tx.concept.toLowerCase().includes(searchTerm.toLowerCase());
-    } else if (searchType === 'category') {
-      const catName = getCategoryName(tx.category_id);
-      return catName.toLowerCase().includes(searchTerm.toLowerCase());
+    // Filter by category
+    let matchesCategory = true;
+    if (selectedCategoryFilter === 'uncategorized') {
+      matchesCategory = !tx.category_id || tx.category_id === '';
+    } else if (selectedCategoryFilter) {
+      matchesCategory = tx.category_id === selectedCategoryFilter;
     }
-    return true;
+    
+    // Filter by search term
+    let matchesSearch = true;
+    if (searchTerm) {
+      if (searchType === 'concept') {
+        matchesSearch = tx.concept.toLowerCase().includes(searchTerm.toLowerCase());
+      } else if (searchType === 'category') {
+        const catName = getCategoryName(tx.category_id);
+        matchesSearch = catName.toLowerCase().includes(searchTerm.toLowerCase());
+      }
+    }
+    
+    return matchesCategory && matchesSearch;
   });
 
   const totalAmount = filteredTransactions.reduce((sum, tx) => sum + tx.amount, 0);
