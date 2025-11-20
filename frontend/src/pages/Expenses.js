@@ -303,6 +303,7 @@ export default function Expenses() {
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">Todas las categorías</SelectItem>
+                <SelectItem value="uncategorized">Sin categoría</SelectItem>
                 {categories.sort((a, b) => a.name.localeCompare(b.name)).map((cat) => (
                   <SelectItem key={cat.id} value={cat.id}>{cat.name}</SelectItem>
                 ))}
