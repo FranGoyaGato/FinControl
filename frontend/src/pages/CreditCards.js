@@ -203,6 +203,29 @@ export default function CreditCards() {
             </CardContent>
           </Card>
 
+          {/* Filters */}
+          <Card data-testid="card-filters" className="border border-gray-200">
+            <CardContent className="pt-6">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <label className="text-sm font-medium text-gray-700 mb-2 block">Filtrar por categoría</label>
+                  <Select value={selectedCategoryFilter || 'all'} onValueChange={(val) => setSelectedCategoryFilter(val === 'all' ? '' : val)}>
+                    <SelectTrigger data-testid="category-filter-select-cards">
+                      <SelectValue placeholder="Todas las categorías" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">Todas las categorías</SelectItem>
+                      <SelectItem value="uncategorized">Sin categoría</SelectItem>
+                      {categories.sort((a, b) => a.name.localeCompare(b.name)).map((cat) => (
+                        <SelectItem key={cat.id} value={cat.id}>{cat.name}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
           {/* Search */}
           <Card data-testid="card-search" className="border border-gray-200">
             <CardContent className="pt-6">
