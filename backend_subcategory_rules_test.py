@@ -10,7 +10,7 @@ import sys
 from datetime import datetime
 
 class SubcategoryRulesTest:
-    def __init__(self, base_url="https://budgetpal-246.preview.emergentagent.com/api"):
+    def __init__(self, base_url="https://money-board-9.preview.emergentagent.com/api"):
         self.base_url = base_url
         self.headers = {'Content-Type': 'application/json'}
         
