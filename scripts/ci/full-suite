@@ -4,6 +4,16 @@
 set -euo pipefail
 cd "$(dirname "$0")/../.."
 
+# docker-compose.yml declara env_file: .env para backend/frontend; sin ese
+# fichero, algunas versiones de docker compose (la de este runner de CI,
+# distinta de la del desarrollo local) devuelven código de salida distinto
+# de cero en `up`/`down` en vez de solo avisar. CI no necesita datos reales
+# ahí (pytest recibe sus env vars directamente), así que basta con que el
+# fichero exista.
+if [ ! -f .env ]; then
+  cp .env.example .env
+fi
+
 echo "== full-suite: levantando mongo =="
 docker compose up -d mongo
 
