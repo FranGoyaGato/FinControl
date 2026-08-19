@@ -1,0 +1,24 @@
+#!/usr/bin/env bash
+# Auditoría de dependencias, backend y frontend. Propaga el resultado real:
+# esta primera medición encuentra deuda heredada de la adopción (decenas de
+# CVEs en dependencias ya fijadas antes de esta unidad) — es la línea base,
+# no un fallo de esta unidad, y queda documentada en AGENTS.md/hallazgos para
+# una unidad de actualización de dependencias futura.
+set -euo pipefail
+cd "$(dirname "$0")/../.."
+
+echo "== security: backend (pip-audit) =="
+(
+  cd backend
+  python -m venv .venv
+  if [ -f .venv/bin/activate ]; then source .venv/bin/activate; else source .venv/Scripts/activate; fi
+  pip install --quiet -r requirements.txt
+  pip-audit -r requirements.txt
+)
+
+echo "== security: frontend (yarn audit) =="
+(
+  cd frontend
+  corepack yarn install --frozen-lockfile
+  corepack yarn audit --level high
+)
