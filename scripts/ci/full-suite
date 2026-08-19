@@ -8,9 +8,15 @@ echo "== full-suite: levantando mongo =="
 docker compose up -d mongo
 
 echo "== full-suite: esperando a que mongo responda =="
+# Comprobación por TCP crudo desde el host (no via `docker compose exec`): es
+# exactamente el mismo camino que usará pytest después (MONGO_URL apunta a
+# localhost:27017, el puerto publicado), y no depende de que `mongosh` esté
+# disponible ni de cómo resuelva `exec` en el runner.
 listo=0
 for _ in $(seq 1 90); do
-  if docker compose exec -T mongo mongosh --quiet --eval "db.runCommand('ping')" >/dev/null 2>&1; then
+  if (exec 3<>/dev/tcp/127.0.0.1/27017) 2>/dev/null; then
+    exec 3<&-
+    exec 3>&-
     listo=1
     break
   fi
@@ -18,6 +24,7 @@ for _ in $(seq 1 90); do
 done
 if [ "$listo" -ne 1 ]; then
   echo "mongo no respondió a tiempo" >&2
+  docker compose ps
   docker compose logs mongo
   exit 1
 fi
