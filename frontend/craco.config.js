@@ -109,4 +109,21 @@ if (config.enableVisualEdits || config.enableHealthCheck) {
   };
 }
 
+// Jest (bajo react-scripts 5) no resuelve el alias "@" del webpack de arriba,
+// ni el mapa "exports" de package.json que usa react-router-dom@7 para su
+// subpath "react-router/dom" — Jest 27 no soporta ese campo. Se mapean ambos
+// a mano para que los mismos imports funcionen en build y en test.
+webpackConfig.jest = {
+  configure: (jestConfig) => {
+    jestConfig.moduleNameMapper = {
+      ...jestConfig.moduleNameMapper,
+      '^@/(.*)$': '<rootDir>/src/$1',
+      '^react-router/dom$': '<rootDir>/node_modules/react-router/dist/development/dom-export.js',
+      '^@radix-ui/primitive/is-development$':
+        '<rootDir>/node_modules/@radix-ui/primitive/dist/internal/is-development.false.js',
+    };
+    return jestConfig;
+  },
+};
+
 module.exports = webpackConfig;

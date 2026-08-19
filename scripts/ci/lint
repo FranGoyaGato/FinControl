@@ -1,0 +1,28 @@
+#!/usr/bin/env bash
+# Lint de lo que este repo posee y mantiene hoy: backend/tests/ y los ficheros
+# nuevos del frontend (tests, config). El resto de `backend/server.py` y de
+# `frontend/src/{pages,components}` es código heredado de la adopción con
+# deuda de formato/tipos ya conocida y documentada (ver AGENTS.md, sección
+# "Deuda conocida") — materializar el CI no incluye arreglarlo de golpe.
+set -euo pipefail
+cd "$(dirname "$0")/../.."
+
+echo "== lint: backend (black, flake8, mypy) =="
+(
+  cd backend
+  python -m venv .venv
+  if [ -f .venv/bin/activate ]; then source .venv/bin/activate; else source .venv/Scripts/activate; fi
+  pip install --quiet -r requirements.txt
+  black --check tests/
+  flake8 tests/ --max-line-length=100
+  mypy tests/ --ignore-missing-imports --follow-imports=silent
+)
+
+echo "== lint: frontend (eslint) =="
+(
+  cd frontend
+  corepack yarn install --frozen-lockfile
+  npx eslint src/App.test.js src/pages/pages.smoke.test.js src/setupTests.js
+)
+
+echo "== lint: OK =="

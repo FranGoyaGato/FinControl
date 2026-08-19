@@ -1,0 +1,64 @@
+#!/usr/bin/env bash
+# Suite completa: backend (pytest) + frontend (jest), contra un Mongo real en
+# Docker. Falla en cuanto algo falla (set -e): nada de "|| true" tapando rojo.
+set -euo pipefail
+cd "$(dirname "$0")/../.."
+
+# docker-compose.yml declara env_file: .env para backend/frontend; sin ese
+# fichero, algunas versiones de docker compose (la de este runner de CI,
+# distinta de la del desarrollo local) devuelven código de salida distinto
+# de cero en `up`/`down` en vez de solo avisar. CI no necesita datos reales
+# ahí (pytest recibe sus env vars directamente), así que basta con que el
+# fichero exista.
+if [ ! -f .env ]; then
+  cp .env.example .env
+fi
+
+echo "== full-suite: levantando mongo =="
+docker compose up -d mongo
+
+echo "== full-suite: esperando a que mongo responda =="
+# Comprobación por TCP crudo desde el host (no via `docker compose exec`): es
+# exactamente el mismo camino que usará pytest después (MONGO_URL apunta a
+# localhost:27017, el puerto publicado), y no depende de que `mongosh` esté
+# disponible ni de cómo resuelva `exec` en el runner.
+listo=0
+for _ in $(seq 1 90); do
+  if (exec 3<>/dev/tcp/127.0.0.1/27017) 2>/dev/null; then
+    exec 3<&-
+    exec 3>&-
+    listo=1
+    break
+  fi
+  sleep 2
+done
+if [ "$listo" -ne 1 ]; then
+  echo "mongo no respondió a tiempo" >&2
+  docker compose ps
+  docker compose logs mongo
+  exit 1
+fi
+
+echo "== full-suite: backend (pytest) =="
+(
+  cd backend
+  python -m venv .venv
+  if [ -f .venv/bin/activate ]; then source .venv/bin/activate; else source .venv/Scripts/activate; fi
+  pip install --quiet -r requirements.txt
+  MONGO_URL="${MONGO_URL:-mongodb://localhost:27017}" \
+    DB_NAME="${DB_NAME:-fincontrol_test}" \
+    CORS_ORIGINS="*" \
+    python -m pytest tests/ -q
+)
+
+echo "== full-suite: frontend (jest) =="
+(
+  cd frontend
+  corepack yarn install --frozen-lockfile
+  CI=true corepack yarn test --watchAll=false
+)
+
+echo "== full-suite: parando mongo =="
+docker compose down
+
+echo "== full-suite: OK =="
