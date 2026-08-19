@@ -9,15 +9,16 @@ docker compose up -d mongo
 
 echo "== full-suite: esperando a que mongo responda =="
 listo=0
-for _ in $(seq 1 30); do
+for _ in $(seq 1 90); do
   if docker compose exec -T mongo mongosh --quiet --eval "db.runCommand('ping')" >/dev/null 2>&1; then
     listo=1
     break
   fi
-  sleep 1
+  sleep 2
 done
 if [ "$listo" -ne 1 ]; then
   echo "mongo no respondió a tiempo" >&2
+  docker compose logs mongo
   exit 1
 fi
 
