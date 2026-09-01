@@ -1,14 +1,14 @@
-from fastapi import FastAPI, APIRouter, HTTPException, UploadFile, File, Query
+from fastapi import FastAPI, APIRouter, HTTPException, UploadFile, File, Query, Depends, Header
 from dotenv import load_dotenv
 from starlette.middleware.cors import CORSMiddleware
 from motor.motor_asyncio import AsyncIOMotorClient
 import os
 import logging
 from pathlib import Path
-from pydantic import BaseModel, Field, ConfigDict
+from pydantic import BaseModel, Field, ConfigDict, EmailStr
 from typing import List, Optional, Dict, Any
 import uuid
-from datetime import datetime, timezone
+from datetime import datetime, timezone, timedelta
 import hashlib
 import io
 import csv
@@ -17,6 +17,8 @@ from openpyxl.styles import Font, Alignment, PatternFill, numbers
 import xlrd
 from decimal import Decimal
 import re
+import bcrypt
+import jwt
 
 
 ROOT_DIR = Path(__file__).parent
@@ -30,8 +32,142 @@ db = client[os.environ['DB_NAME']]
 # Create the main app without a prefix
 app = FastAPI()
 
-# Create a router with the /api prefix
-api_router = APIRouter(prefix="/api")
+# ============ AUTH UTILITIES ============
+
+JWT_ALGORITHM = "HS256"
+JWT_EXPIRE_DAYS = 30
+
+
+def _jwt_secret() -> str:
+    return os.environ['JWT_SECRET']
+
+
+def hash_password(password: str) -> str:
+    return bcrypt.hashpw(password.encode('utf-8'), bcrypt.gensalt()).decode('utf-8')
+
+
+def verify_password(plain: str, hashed: str) -> bool:
+    try:
+        return bcrypt.checkpw(plain.encode('utf-8'), hashed.encode('utf-8'))
+    except (ValueError, TypeError):
+        return False
+
+
+def create_access_token(user_id: str, email: str) -> str:
+    payload = {
+        'sub': user_id,
+        'email': email,
+        'exp': datetime.now(timezone.utc) + timedelta(days=JWT_EXPIRE_DAYS),
+        'iat': datetime.now(timezone.utc),
+        'type': 'access',
+    }
+    return jwt.encode(payload, _jwt_secret(), algorithm=JWT_ALGORITHM)
+
+
+async def get_current_user(authorization: Optional[str] = Header(default=None)) -> dict:
+    if not authorization or not authorization.lower().startswith('bearer '):
+        raise HTTPException(status_code=401, detail='No autenticado')
+    token = authorization.split(' ', 1)[1].strip()
+    try:
+        payload = jwt.decode(token, _jwt_secret(), algorithms=[JWT_ALGORITHM])
+    except jwt.ExpiredSignatureError:
+        raise HTTPException(status_code=401, detail='Sesión expirada')
+    except jwt.InvalidTokenError:
+        raise HTTPException(status_code=401, detail='Token inválido')
+    if payload.get('type') != 'access':
+        raise HTTPException(status_code=401, detail='Token inválido')
+    user = await db.users.find_one({'id': payload['sub']}, {'_id': 0, 'password_hash': 0})
+    if not user:
+        raise HTTPException(status_code=401, detail='Usuario no encontrado')
+    return user
+
+
+# ============ AUTH ROUTER (public) ============
+
+auth_router = APIRouter(prefix="/api/auth")
+
+
+class LoginRequest(BaseModel):
+    email: EmailStr
+    password: str
+
+
+class ChangePasswordRequest(BaseModel):
+    current_password: str
+    new_password: str = Field(min_length=8)
+
+
+@auth_router.post("/login")
+async def login(payload: LoginRequest):
+    email = payload.email.lower().strip()
+    user = await db.users.find_one({'email': email})
+    if not user or not verify_password(payload.password, user.get('password_hash', '')):
+        raise HTTPException(status_code=401, detail='Email o contraseña incorrectos')
+    token = create_access_token(user['id'], user['email'])
+    return {
+        'token': token,
+        'user': {'id': user['id'], 'email': user['email'], 'name': user.get('name', '')},
+    }
+
+
+@auth_router.get("/me")
+async def me(current_user: dict = Depends(get_current_user)):
+    return current_user
+
+
+@auth_router.post("/logout")
+async def logout(current_user: dict = Depends(get_current_user)):
+    # Stateless JWT — client discards its token. Endpoint kept for API symmetry.
+    return {'ok': True}
+
+
+@auth_router.post("/change-password")
+async def change_password(body: ChangePasswordRequest, current_user: dict = Depends(get_current_user)):
+    user_doc = await db.users.find_one({'id': current_user['id']})
+    if not user_doc or not verify_password(body.current_password, user_doc.get('password_hash', '')):
+        raise HTTPException(status_code=400, detail='Contraseña actual incorrecta')
+    await db.users.update_one(
+        {'id': current_user['id']},
+        {'$set': {'password_hash': hash_password(body.new_password),
+                  'password_updated_at': datetime.now(timezone.utc).isoformat()}},
+    )
+    return {'ok': True}
+
+
+# ============ PROTECTED API ROUTER ============
+
+# Create a router with the /api prefix — all routes require a valid Bearer token.
+api_router = APIRouter(prefix="/api", dependencies=[Depends(get_current_user)])
+
+
+# ============ SEED ADMIN ============
+
+async def seed_admin():
+    """Create the single admin user on startup if it doesn't exist. Idempotent."""
+    admin_email = os.environ['ADMIN_EMAIL'].lower().strip()
+    admin_password = os.environ['ADMIN_PASSWORD']
+    existing = await db.users.find_one({'email': admin_email})
+    if existing is None:
+        await db.users.insert_one({
+            'id': str(uuid.uuid4()),
+            'email': admin_email,
+            'password_hash': hash_password(admin_password),
+            'name': 'Admin',
+            'role': 'admin',
+            'created_at': datetime.now(timezone.utc).isoformat(),
+        })
+        logging.info(f"Seeded admin user {admin_email}")
+    # If it exists we DO NOT reset the hash — the user may have rotated it via /change-password.
+
+
+@app.on_event("startup")
+async def startup_seed_and_indexes():
+    try:
+        await db.users.create_index('email', unique=True)
+    except Exception as e:
+        logging.warning(f"Users email index: {e}")
+    await seed_admin()
+
 
 
 # ============ MODELS ============
@@ -994,6 +1130,7 @@ async def update_settings(input: SettingsUpdate):
 
 
 # Include the router in the main app
+app.include_router(auth_router)
 app.include_router(api_router)
 
 app.add_middleware(

@@ -1,7 +1,9 @@
 import { useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
-import { Home, TrendingUp, TrendingDown, CreditCard, Upload, Settings, Menu } from 'lucide-react';
+import { Home, TrendingUp, TrendingDown, CreditCard, Upload, Settings, Menu, LogOut } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { useAuth } from '@/contexts/AuthContext';
+import { toast } from 'sonner';
 
 const navigation = [
   { name: 'General', path: '/dashboard', icon: Home },
@@ -15,7 +17,14 @@ const navigation = [
 export default function MainLayout({ children }) {
   const location = useLocation();
   const navigate = useNavigate();
+  const { user, logout } = useAuth();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+
+  const handleLogout = async () => {
+    await logout();
+    toast.success('Sesión cerrada');
+    navigate('/login', { replace: true });
+  };
 
   return (
     <div className="min-h-screen bg-[#fafafa]">
@@ -60,7 +69,7 @@ export default function MainLayout({ children }) {
             return (
               <button
                 key={item.path}
-                data-testid={`nav-${item.name.toLowerCase()}`}
+                data-testid={`nav-${item.name.toLowerCase()}-mobile`}
                 onClick={() => {
                   navigate(item.path);
                   setMobileMenuOpen(false);
@@ -77,15 +86,30 @@ export default function MainLayout({ children }) {
               </button>
             );
           })}
+          <div className="pt-3 mt-3 border-t border-gray-200">
+            {user && (
+              <div className="px-4 pb-2 text-xs text-gray-500 truncate" title={user.email}>
+                {user.email}
+              </div>
+            )}
+            <button
+              data-testid="logout-btn-mobile"
+              onClick={() => { setMobileMenuOpen(false); handleLogout(); }}
+              className="w-full flex items-center gap-3 px-4 py-3 rounded-xl text-left text-gray-700 hover:bg-red-50 hover:text-red-600 transition-colors"
+            >
+              <LogOut className="w-5 h-5" />
+              <span>Cerrar sesión</span>
+            </button>
+          </div>
         </nav>
       </div>
 
       {/* Desktop Sidebar */}
-      <div className="hidden lg:block fixed left-0 top-0 bottom-0 w-64 bg-white border-r border-gray-200 z-30">
+      <div className="hidden lg:flex flex-col fixed left-0 top-0 bottom-0 w-64 bg-white border-r border-gray-200 z-30">
         <div className="p-6 border-b border-gray-200">
           <h2 className="text-2xl font-semibold" style={{ fontFamily: 'Space Grotesk, sans-serif' }}>FinControl</h2>
         </div>
-        <nav className="p-4 space-y-2">
+        <nav className="p-4 space-y-2 flex-1 overflow-y-auto">
           {navigation.map((item) => {
             const Icon = item.icon;
             const isActive = location.pathname === item.path;
@@ -107,6 +131,21 @@ export default function MainLayout({ children }) {
             );
           })}
         </nav>
+        <div className="border-t border-gray-200 p-4 space-y-2">
+          {user && (
+            <div className="text-xs text-gray-500 truncate" title={user.email} data-testid="current-user-email">
+              {user.email}
+            </div>
+          )}
+          <button
+            data-testid="logout-btn"
+            onClick={handleLogout}
+            className="w-full flex items-center gap-3 px-4 py-2 rounded-xl text-left text-gray-700 hover:bg-red-50 hover:text-red-600 transition-colors"
+          >
+            <LogOut className="w-4 h-4" />
+            <span className="text-sm">Cerrar sesión</span>
+          </button>
+        </div>
       </div>
 
       {/* Main Content */}

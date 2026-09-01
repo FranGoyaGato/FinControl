@@ -25,8 +25,10 @@ def _uniq(name):
 
 
 @pytest.fixture(scope="module")
-def sess():
+def sess(auth_token):
+    """Authenticated session — all /api routes are now behind Bearer auth."""
     s = requests.Session()
+    s.headers.update({"Authorization": f"Bearer {auth_token}"})
     yield s
     s.close()
 

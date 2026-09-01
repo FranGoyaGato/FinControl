@@ -7,9 +7,85 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { toast } from 'sonner';
-import { Settings as SettingsIcon, Trash2, Plus, Edit } from 'lucide-react';
+import { Settings as SettingsIcon, Trash2, Plus, Edit, KeyRound } from 'lucide-react';
 
 const API = `${process.env.REACT_APP_BACKEND_URL}/api`;
+
+function ChangePasswordCard() {
+  const [current, setCurrent] = useState('');
+  const [next, setNext] = useState('');
+  const [confirm, setConfirm] = useState('');
+  const [saving, setSaving] = useState(false);
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    if (next.length < 8) { toast.error('La nueva contraseña debe tener al menos 8 caracteres'); return; }
+    if (next !== confirm) { toast.error('Las contraseñas no coinciden'); return; }
+    setSaving(true);
+    try {
+      await axios.post(`${API}/auth/change-password`, {
+        current_password: current,
+        new_password: next,
+      });
+      toast.success('Contraseña actualizada');
+      setCurrent(''); setNext(''); setConfirm('');
+    } catch (err) {
+      const detail = err?.response?.data?.detail;
+      toast.error(typeof detail === 'string' ? detail : 'Error al cambiar contraseña');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle className="flex items-center gap-2">
+          <KeyRound className="w-4 h-4 text-indigo-600" />
+          Cambiar contraseña
+        </CardTitle>
+      </CardHeader>
+      <CardContent>
+        <form onSubmit={handleSubmit} className="space-y-4 max-w-md" data-testid="change-password-form">
+          <div className="space-y-1.5">
+            <label className="text-sm font-medium text-gray-700">Contraseña actual</label>
+            <Input
+              type="password"
+              autoComplete="current-password"
+              data-testid="current-password-input"
+              value={current}
+              onChange={(e) => setCurrent(e.target.value)}
+            />
+          </div>
+          <div className="space-y-1.5">
+            <label className="text-sm font-medium text-gray-700">Nueva contraseña</label>
+            <Input
+              type="password"
+              autoComplete="new-password"
+              data-testid="new-password-input"
+              value={next}
+              onChange={(e) => setNext(e.target.value)}
+            />
+            <p className="text-xs text-gray-500">Mínimo 8 caracteres.</p>
+          </div>
+          <div className="space-y-1.5">
+            <label className="text-sm font-medium text-gray-700">Confirmar nueva contraseña</label>
+            <Input
+              type="password"
+              autoComplete="new-password"
+              data-testid="confirm-password-input"
+              value={confirm}
+              onChange={(e) => setConfirm(e.target.value)}
+            />
+          </div>
+          <Button type="submit" disabled={saving || !current || !next || !confirm} data-testid="change-password-submit">
+            {saving ? 'Guardando…' : 'Actualizar contraseña'}
+          </Button>
+        </form>
+      </CardContent>
+    </Card>
+  );
+}
 
 function AccountsTab({ accounts, onCreate, onDelete }) {
   const [newAccount, setNewAccount] = useState({ name: '' });
@@ -597,12 +673,13 @@ export default function Settings() {
       </div>
 
       <Tabs defaultValue="accounts" className="w-full">
-        <TabsList className="grid w-full grid-cols-5">
+        <TabsList className="grid w-full grid-cols-6">
           <TabsTrigger data-testid="tab-accounts" value="accounts">Cuentas</TabsTrigger>
           <TabsTrigger data-testid="tab-cards" value="cards">Tarjetas</TabsTrigger>
           <TabsTrigger data-testid="tab-categories" value="categories">Categorías</TabsTrigger>
           <TabsTrigger data-testid="tab-subcategories" value="subcategories">Subcategorías</TabsTrigger>
           <TabsTrigger data-testid="tab-rules" value="rules">Reglas</TabsTrigger>
+          <TabsTrigger data-testid="tab-security" value="security">Seguridad</TabsTrigger>
         </TabsList>
 
         <TabsContent value="accounts">
@@ -639,6 +716,9 @@ export default function Settings() {
             onEdit={setEditingRule}
             getCategoryName={getCategoryName}
           />
+        </TabsContent>
+        <TabsContent value="security">
+          <ChangePasswordCard />
         </TabsContent>
       </Tabs>
 

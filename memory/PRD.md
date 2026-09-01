@@ -18,12 +18,8 @@ Personal finance web application for a single user (Spanish, es-ES locale).
   - `/app/frontend/src/pages/` — Dashboard, Income, Expenses, CreditCards, ImportData, Settings
 
 ## Implemented (Changelog)
-- 2026-02: **Gráficos Financieros** en el Dashboard.
-  - New endpoints: `GET /api/dashboard/expense-by-category?date_from&date_to&account_id` (bank + card expenses grouped) and `GET /api/dashboard/monthly-summary?year&account_id` (12 buckets `{month,label,income,expense,net_flow}` con etiquetas es-ES Ene–Dic).
-  - Frontend: `recharts` instalado. Nuevo bloque de 2 tarjetas bajo los KPIs:
-    * Donut de "Gastos por categoría" con leyenda a la derecha (importe + porcentaje), 20 colores rotativos, tooltip con formato es-ES.
-    * Línea de "Flujo mensual — {año}" con 3 series (Ingresos verde, Gastos rojo, Flujo neto índigo), ejes con abreviatura `k`, tooltip custom.
-  - Se dispara en paralelo con el KPI existente (`Promise.all`).
+- 2026-02: **Autenticación Email + Password (JWT)** — usuario único semillado idempotentemente en startup (`fgoya@laboratoriogoya.com`). Todos los `/api/*` protegidos con `Depends(get_current_user)`; router público `/api/auth/{login,me,logout,change-password}`. Frontend: `AuthContext`, `ProtectedRoute`, `/login`, axios interceptor con auto-logout en 401, botón "Cerrar sesión" en sidebar y drawer, pestaña "Seguridad" en Configuración para rotar contraseña. Verificado 83/83 backend + todos los flujos UI (login/logout/rotación/persistencia/interceptor).
+- 2026-02: **Gráficos Financieros** en el Dashboard (donut + línea)
 - 2026-02: **Rules Dedupe (upsert)** — `POST /api/rules` upserts by `(source, contains, sign)`.
 - 2026-02: **Clear Category** — `PUT /api/(card-)transactions/{id}` accept `clear_category`/`clear_subcategory`. UI **X** button next to inline category `Select` in Income, Expenses, Credit Cards.
 - 2026-02: `re.escape()` applied to `contains` in `POST/PUT /api/rules` — rules with regex metacharacters (`*`, `+`, `(`, `)`, etc.) now apply retroactively. Verified via curl: rule with concept `"COMPRA *ESPECIAL* +XYZ"` → `applied_to_existing=1`.
@@ -36,9 +32,11 @@ Personal finance web application for a single user (Spanish, es-ES locale).
   - Backend `parse_csv` decomposed into 5 helpers (200→~40 lines main function)
 - Prior work (retained): "Sin categoría" filter, "Año actual" toggle, Year+Month selects, es-ES currency with dot thousand separator, retroactive rule engine.
 
-## Backlog / Known Issues (P1, pre-existing — not refactor-caused)
+## Backlog / Known Issues (P1)
 1. `_parse_csv_text` can raise TypeError on rows shorter than the header (None values). Guard with `(v or '').strip()`.
-2. Optional splits: `server.py` (~900 lines) → per-domain routers. `Settings.js` (~800 lines) → move 5 tab components into own files.
+2. Optional splits: `server.py` (~1150 lines) → per-domain routers (auth, dashboard, import, transactions, catalog). `Settings.js` (~950 lines) → move tab components into own files.
+3. Auth hardening (P2): JWT invalidation on password change (add `password_updated_at` claim + compare in `get_current_user`); login rate limiting.
+4. UX (P2): default Dashboard month to the most recent month with data instead of current calendar month.
 
 ## Backlog / Ideas (P2)
 - Monthly budgets / savings goals with progress bars
