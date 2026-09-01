@@ -342,7 +342,7 @@ async def create_rule(input: RuleCreate):
         
         # Match concept (case insensitive)
         if input.contains:
-            query['concept'] = {'$regex': input.contains, '$options': 'i'}
+            query['concept'] = {'$regex': re.escape(input.contains), '$options': 'i'}
         
         # Match sign if specified
         if input.sign == '+':
@@ -365,7 +365,7 @@ async def create_rule(input: RuleCreate):
         query = {}
         
         if input.contains:
-            query['concept'] = {'$regex': input.contains, '$options': 'i'}
+            query['concept'] = {'$regex': re.escape(input.contains), '$options': 'i'}
         
         if input.sign == '+':
             query['amount'] = {'$gt': 0}
@@ -416,7 +416,7 @@ async def update_rule(rule_id: str, input: RuleCreate):
     if input.source == 'bank':
         query = {}
         if input.contains:
-            query['concept'] = {'$regex': input.contains, '$options': 'i'}
+            query['concept'] = {'$regex': re.escape(input.contains), '$options': 'i'}
         if input.sign == '+':
             query['amount'] = {'$gt': 0}
         elif input.sign == '-':
@@ -434,7 +434,7 @@ async def update_rule(rule_id: str, input: RuleCreate):
     elif input.source == 'card':
         query = {}
         if input.contains:
-            query['concept'] = {'$regex': input.contains, '$options': 'i'}
+            query['concept'] = {'$regex': re.escape(input.contains), '$options': 'i'}
         if input.sign == '+':
             query['amount'] = {'$gt': 0}
         elif input.sign == '-':

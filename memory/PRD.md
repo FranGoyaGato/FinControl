@@ -18,6 +18,7 @@ Personal finance web application for a single user (Spanish, es-ES locale).
   - `/app/frontend/src/pages/` — Dashboard, Income, Expenses, CreditCards, ImportData, Settings
 
 ## Implemented (Changelog)
+- 2026-02: `re.escape()` applied to `contains` in `POST/PUT /api/rules` — rules with regex metacharacters (`*`, `+`, `(`, `)`, etc.) now apply retroactively. Verified via curl: rule with concept `"COMPRA *ESPECIAL* +XYZ"` → `applied_to_existing=1`.
 - 2026-02: Code-quality refactor
   - All `useEffect` deps fixed with `useCallback` (Dashboard, Income, Expenses, CreditCards, ImportData, Settings, use-toast)
   - All 25 `console.error` calls removed; errors surface via `toast.error`
@@ -28,11 +29,10 @@ Personal finance web application for a single user (Spanish, es-ES locale).
 - Prior work (retained): "Sin categoría" filter, "Año actual" toggle, Year+Month selects, es-ES currency with dot thousand separator, retroactive rule engine.
 
 ## Backlog / Known Issues (P1, pre-existing — not refactor-caused)
-1. `POST/PUT /api/rules` interpolates `contains` into MongoDB `$regex` without `re.escape()` — concepts with regex metacharacters silently match 0 rows. Fix: `re.escape(input.contains)` in both endpoints (documented as xfail test).
-2. `PUT /api/transactions/{id}` and `/api/card-transactions/{id}` use query params where `None` means "no change", so a category cannot be cleared to "Sin categoría" from the UI. Move to Pydantic body allowing explicit null.
-3. `_parse_csv_text` can raise TypeError on rows shorter than the header (None values). Guard with `(v or '').strip()`.
-4. Inline categorization creates a new rule per click without dedup — rules collection has grown unbounded (currently 51). Upsert by `(source, contains)`.
-5. Optional splits: `server.py` (878 lines) → per-domain routers. `Settings.js` (791 lines) → move 5 tab components into own files.
+1. `PUT /api/transactions/{id}` and `/api/card-transactions/{id}` use query params where `None` means "no change", so a category cannot be cleared to "Sin categoría" from the UI. Move to Pydantic body allowing explicit null.
+2. `_parse_csv_text` can raise TypeError on rows shorter than the header (None values). Guard with `(v or '').strip()`.
+3. Inline categorization creates a new rule per click without dedup — rules collection has grown unbounded (currently 51). Upsert by `(source, contains)`.
+4. Optional splits: `server.py` (878 lines) → per-domain routers. `Settings.js` (791 lines) → move 5 tab components into own files.
 
 ## Backlog / Ideas (P2)
 - Monthly budgets / savings goals with progress bars
