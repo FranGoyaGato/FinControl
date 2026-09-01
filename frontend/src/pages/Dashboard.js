@@ -1,10 +1,11 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import axios from 'axios';
 import { TrendingUp, TrendingDown, DollarSign, Calendar } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Button } from '@/components/ui/button';
 import { toast } from 'sonner';
+import { formatCurrencyEUR } from '../utils/format';
 
 const API = `${process.env.REACT_APP_BACKEND_URL}/api`;
 
@@ -36,66 +37,52 @@ export default function Dashboard() {
   });
   const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
-    loadAccounts();
-  }, []);
-
-  useEffect(() => {
-    loadDashboardData();
-  }, [selectedAccount, selectedMonth, viewType]);
-
-  const loadAccounts = async () => {
+  const loadAccounts = useCallback(async () => {
     try {
       const response = await axios.get(`${API}/accounts`);
       setAccounts(response.data);
     } catch (error) {
-      console.error('Error loading accounts:', error);
+      toast.error('Error al cargar cuentas');
     }
-  };
+  }, []);
 
-  const loadDashboardData = async () => {
+  const loadDashboardData = useCallback(async () => {
     try {
       setLoading(true);
       const params = {};
-      
+
       if (selectedAccount !== 'all') {
         params.account_id = selectedAccount;
       }
-      
+
       if (viewType === 'year') {
-        // Año actual: desde 1 de enero hasta hoy
         const currentYear = new Date().getFullYear();
         const today = new Date().toISOString().split('T')[0];
         params.date_from = `${currentYear}-01-01`;
         params.date_to = today;
       } else if (selectedMonth) {
-        // Mes específico
         const [year, month] = selectedMonth.split('-');
         params.date_from = `${year}-${month}-01`;
-        // Corregir el cálculo del último día del mes
-        const lastDay = new Date(parseInt(year), parseInt(month), 0).getDate();
+        const lastDay = new Date(parseInt(year, 10), parseInt(month, 10), 0).getDate();
         params.date_to = `${year}-${month}-${String(lastDay).padStart(2, '0')}`;
       }
-      
+
       const response = await axios.get(`${API}/dashboard`, { params });
       setKpis(response.data);
     } catch (error) {
-      console.error('Error loading dashboard:', error);
       toast.error('Error al cargar el dashboard');
     } finally {
       setLoading(false);
     }
-  };
+  }, [selectedAccount, selectedMonth, viewType]);
 
-  const formatCurrency = (value) => {
-    return new Intl.NumberFormat('es-ES', {
-      style: 'currency',
-      currency: 'EUR',
-      minimumFractionDigits: 2,
-      maximumFractionDigits: 2,
-      useGrouping: true
-    }).format(value);
-  };
+  useEffect(() => {
+    loadAccounts();
+  }, [loadAccounts]);
+
+  useEffect(() => {
+    loadDashboardData();
+  }, [loadDashboardData]);
 
   const isYearView = viewType === 'year';
 
@@ -181,19 +168,19 @@ export default function Dashboard() {
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
           <KPICard
             title={isYearView ? "Ingresos del Año" : "Ingresos del Mes"}
-            value={formatCurrency(kpis.total_income)}
+            value={formatCurrencyEUR(kpis.total_income)}
             icon={TrendingUp}
             colorClass="text-green-600"
           />
           <KPICard
             title={isYearView ? "Gastos del Año" : "Gastos del Mes"}
-            value={formatCurrency(kpis.total_expense)}
+            value={formatCurrencyEUR(kpis.total_expense)}
             icon={TrendingDown}
             colorClass="text-red-600"
           />
           <KPICard
             title="Flujo Neto"
-            value={formatCurrency(kpis.net_flow)}
+            value={formatCurrencyEUR(kpis.net_flow)}
             subtitle={kpis.net_flow >= 0 ? 'Balance positivo' : 'Balance negativo'}
             icon={DollarSign}
             colorClass={kpis.net_flow >= 0 ? 'text-green-600' : 'text-red-600'}

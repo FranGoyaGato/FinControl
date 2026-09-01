@@ -1,10 +1,10 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import axios from 'axios';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { toast } from 'sonner';
 import { CreditCard, Search } from 'lucide-react';
+import { formatCurrencyEUR } from '../utils/format';
 
 const API = `${process.env.REACT_APP_BACKEND_URL}/api`;
 
@@ -18,71 +18,69 @@ export default function CreditCards() {
   const [selectedCategoryFilter, setSelectedCategoryFilter] = useState('');
   const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
-    loadCards();
-    loadCategories();
-  }, []);
-
-  useEffect(() => {
-    if (selectedCard) {
-      loadTransactions();
-    }
-  }, [selectedCard]);
-
-  const loadCards = async () => {
+  const loadCards = useCallback(async () => {
     try {
       const response = await axios.get(`${API}/credit-cards`);
       setCards(response.data);
-      if (response.data.length > 0 && !selectedCard) {
-        setSelectedCard(response.data[0].id);
+      if (response.data.length > 0) {
+        setSelectedCard((prev) => prev || response.data[0].id);
       }
     } catch (error) {
-      console.error('Error loading cards:', error);
+      toast.error('Error al cargar tarjetas');
     }
-  };
+  }, []);
 
-  const loadCategories = async () => {
+  const loadCategories = useCallback(async () => {
     try {
       const response = await axios.get(`${API}/categories`);
       setCategories(response.data);
     } catch (error) {
-      console.error('Error loading categories:', error);
+      toast.error('Error al cargar categorías');
     }
-  };
+  }, []);
 
-  const loadTransactions = async () => {
+  const loadTransactions = useCallback(async () => {
+    if (!selectedCard) return;
     try {
       setLoading(true);
       const response = await axios.get(`${API}/card-transactions`, {
-        params: { card_id: selectedCard }
+        params: { card_id: selectedCard },
       });
       setTransactions(response.data);
     } catch (error) {
-      console.error('Error loading transactions:', error);
       toast.error('Error al cargar movimientos');
     } finally {
       setLoading(false);
     }
-  };
+  }, [selectedCard]);
+
+  useEffect(() => {
+    loadCards();
+    loadCategories();
+  }, [loadCards, loadCategories]);
+
+  useEffect(() => {
+    loadTransactions();
+  }, [loadTransactions]);
+
+  const getCategoryName = useCallback((id) => {
+    const cat = categories.find((c) => c.id === id);
+    return cat ? cat.name : 'Sin categoría';
+  }, [categories]);
 
   const updateTransactionCategory = async (txId, categoryId) => {
     try {
-      const tx = transactions.find(t => t.id === txId);
-      
+      const tx = transactions.find((t) => t.id === txId);
+
       if (tx && categoryId) {
-        // Apply to ALL transactions with same concept
-        const sameConcept = transactions.filter(t => t.concept === tx.concept);
-        
-        // Update all matching transactions
-        const updatePromises = sameConcept.map(t => 
+        const sameConcept = transactions.filter((t) => t.concept === tx.concept);
+        const updatePromises = sameConcept.map((t) =>
           axios.put(`${API}/card-transactions/${t.id}`, null, {
-            params: { category_id: categoryId }
+            params: { category_id: categoryId },
           })
         );
-        
         await Promise.all(updatePromises);
-        
-        // Create automatic rule for future transactions
+
         try {
           await axios.post(`${API}/rules`, {
             source: 'card',
@@ -91,7 +89,7 @@ export default function CreditCards() {
             category_id: categoryId,
             subcategory_id: null,
             priority: 5,
-            active: true
+            active: true,
           });
           toast.success(`Categoría aplicada a ${sameConcept.length} movimiento(s) y regla creada`);
         } catch (ruleError) {
@@ -99,57 +97,48 @@ export default function CreditCards() {
         }
       } else {
         await axios.put(`${API}/card-transactions/${txId}`, null, {
-          params: { category_id: categoryId }
+          params: { category_id: categoryId },
         });
         toast.success('Categoría actualizada');
       }
-      
+
       loadTransactions();
     } catch (error) {
-      console.error('Error updating category:', error);
       toast.error('Error al actualizar categoría');
     }
   };
 
-  const getCategoryName = (id) => {
-    const cat = categories.find(c => c.id === id);
-    return cat ? cat.name : 'Sin categoría';
-  };
-
-  const formatCurrency = (value) => {
-    return new Intl.NumberFormat('es-ES', {
-      style: 'currency',
-      currency: 'EUR',
-      minimumFractionDigits: 2,
-      maximumFractionDigits: 2,
-      useGrouping: true
-    }).format(value);
-  };
-
-  const filteredTransactions = transactions.filter(tx => {
-    // Filter by category
-    let matchesCategory = true;
-    if (selectedCategoryFilter === 'uncategorized') {
-      matchesCategory = !tx.category_id || tx.category_id === '';
-    } else if (selectedCategoryFilter) {
-      matchesCategory = tx.category_id === selectedCategoryFilter;
-    }
-    
-    // Filter by search term
-    let matchesSearch = true;
-    if (searchTerm) {
-      if (searchType === 'concept') {
-        matchesSearch = tx.concept.toLowerCase().includes(searchTerm.toLowerCase());
-      } else if (searchType === 'category') {
-        const catName = getCategoryName(tx.category_id);
-        matchesSearch = catName.toLowerCase().includes(searchTerm.toLowerCase());
+  const filteredTransactions = useMemo(() => {
+    return transactions.filter((tx) => {
+      let matchesCategory = true;
+      if (selectedCategoryFilter === 'uncategorized') {
+        matchesCategory = !tx.category_id || tx.category_id === '';
+      } else if (selectedCategoryFilter) {
+        matchesCategory = tx.category_id === selectedCategoryFilter;
       }
-    }
-    
-    return matchesCategory && matchesSearch;
-  });
 
-  const totalAmount = filteredTransactions.reduce((sum, tx) => sum + tx.amount, 0);
+      let matchesSearch = true;
+      if (searchTerm) {
+        if (searchType === 'concept') {
+          matchesSearch = tx.concept.toLowerCase().includes(searchTerm.toLowerCase());
+        } else if (searchType === 'category') {
+          const catName = getCategoryName(tx.category_id);
+          matchesSearch = catName.toLowerCase().includes(searchTerm.toLowerCase());
+        }
+      }
+      return matchesCategory && matchesSearch;
+    });
+  }, [transactions, selectedCategoryFilter, searchTerm, searchType, getCategoryName]);
+
+  const totalAmount = useMemo(
+    () => filteredTransactions.reduce((sum, tx) => sum + tx.amount, 0),
+    [filteredTransactions]
+  );
+
+  const sortedCategories = useMemo(
+    () => [...categories].sort((a, b) => a.name.localeCompare(b.name)),
+    [categories]
+  );
 
   return (
     <div className="space-y-6">
@@ -171,7 +160,6 @@ export default function CreditCards() {
         </Card>
       ) : (
         <>
-          {/* Card Selector */}
           <Card className="border border-gray-200">
             <CardContent className="pt-6">
               <div className="flex items-center gap-4">
@@ -192,18 +180,16 @@ export default function CreditCards() {
             </CardContent>
           </Card>
 
-          {/* Summary */}
           <Card className="border border-gray-200 bg-gradient-to-br from-indigo-50 to-purple-50">
             <CardContent className="pt-6">
               <div className="text-sm text-gray-600 mb-1">Total Movimientos</div>
               <div className={`text-3xl font-bold ${totalAmount < 0 ? 'text-red-700' : 'text-blue-700'}`} style={{ fontFamily: 'Space Grotesk, sans-serif' }}>
-                {formatCurrency(totalAmount)}
+                {formatCurrencyEUR(totalAmount)}
               </div>
               <div className="text-sm text-gray-600 mt-2">{filteredTransactions.length} transacciones</div>
             </CardContent>
           </Card>
 
-          {/* Filters */}
           <Card data-testid="card-filters" className="border border-gray-200">
             <CardContent className="pt-6">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -216,7 +202,7 @@ export default function CreditCards() {
                     <SelectContent>
                       <SelectItem value="all">Todas las categorías</SelectItem>
                       <SelectItem value="uncategorized">Sin categoría</SelectItem>
-                      {categories.sort((a, b) => a.name.localeCompare(b.name)).map((cat) => (
+                      {sortedCategories.map((cat) => (
                         <SelectItem key={cat.id} value={cat.id}>{cat.name}</SelectItem>
                       ))}
                     </SelectContent>
@@ -226,7 +212,6 @@ export default function CreditCards() {
             </CardContent>
           </Card>
 
-          {/* Search */}
           <Card data-testid="card-search" className="border border-gray-200">
             <CardContent className="pt-6">
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
@@ -254,7 +239,6 @@ export default function CreditCards() {
             </CardContent>
           </Card>
 
-          {/* Transactions Table */}
           <Card data-testid="card-transactions-table" className="border border-gray-200">
             <CardHeader>
               <CardTitle>Transacciones</CardTitle>
@@ -286,7 +270,7 @@ export default function CreditCards() {
                           <td className="py-3 text-sm">{new Date(tx.date).toLocaleDateString('es-ES')}</td>
                           <td className="py-3 text-sm">{tx.concept}</td>
                           <td className={`py-3 text-sm font-semibold ${tx.amount < 0 ? 'text-red-600' : 'text-blue-600'}`}>
-                            {formatCurrency(tx.amount)}
+                            {formatCurrencyEUR(tx.amount)}
                           </td>
                           <td className="py-3 text-sm">
                             <Select
@@ -297,7 +281,7 @@ export default function CreditCards() {
                                 <SelectValue placeholder="Sin categoría" />
                               </SelectTrigger>
                               <SelectContent>
-                                {categories.sort((a, b) => a.name.localeCompare(b.name)).map((cat) => (
+                                {sortedCategories.map((cat) => (
                                   <SelectItem key={cat.id} value={cat.id}>{cat.name}</SelectItem>
                                 ))}
                               </SelectContent>

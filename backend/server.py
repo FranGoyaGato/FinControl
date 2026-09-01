@@ -581,208 +581,152 @@ async def update_card_transaction(transaction_id: str, category_id: Optional[str
     return CardTransaction(**result)
 
 
+# --- IMPORT CSV/XLSX HELPERS ---
+
+def _parse_amount(amount_str: str) -> float:
+    """Parse amount handling both CSV (1.234,56) and Excel (1234.56) formats"""
+    try:
+        if ',' in amount_str and '.' in amount_str:
+            amount_str = amount_str.replace('.', '').replace(',', '.')
+        elif ',' in amount_str:
+            amount_str = amount_str.replace(',', '.')
+        return float(amount_str)
+    except (ValueError, TypeError):
+        return 0.0
+
+
+def _parse_xlsx(content: bytes) -> tuple:
+    """Parse XLSX (Excel 2007+). Returns (rows, headers)."""
+    rows = []
+    wb = load_workbook(io.BytesIO(content), read_only=True, data_only=True)
+    ws = wb.active
+
+    headers = [cell.value.strip().lower() if cell.value else '' for cell in ws[1]]
+
+    for row in ws.iter_rows(min_row=2, values_only=True):
+        if not row:
+            continue
+        row_list = list(row) + [None] * (3 - len(row))
+        if not row_list[0] and not row_list[1] and not row_list[2]:
+            continue
+
+        fecha_val = row_list[0]
+        if isinstance(fecha_val, datetime):
+            fecha_str = fecha_val.strftime('%d/%m/%Y')
+        else:
+            fecha_str = str(fecha_val).strip() if fecha_val is not None else ''
+
+        rows.append({
+            'fecha': fecha_str,
+            'concepto': str(row_list[1]).strip() if row_list[1] is not None else '',
+            'importe': str(row_list[2]) if row_list[2] is not None else '0',
+        })
+
+    wb.close()
+    return rows, headers
+
+
+def _xls_date_string(cell, datemode) -> str:
+    """Convert an xlrd date cell to DD/MM/YYYY, otherwise stringify."""
+    if cell.ctype == xlrd.XL_CELL_DATE:
+        d = xlrd.xldate_as_tuple(cell.value, datemode)
+        return f"{d[2]:02d}/{d[1]:02d}/{d[0]}"
+    return str(cell.value).strip() if cell.value else ''
+
+
+def _parse_xls(content: bytes) -> tuple:
+    """Parse legacy XLS (Excel 97-2003). Returns (rows, headers)."""
+    rows = []
+    wb = xlrd.open_workbook(file_contents=content)
+    ws = wb.sheet_by_index(0)
+
+    headers = [str(cell.value).strip().lower() if cell.value else '' for cell in ws.row(0)]
+
+    for row_idx in range(1, ws.nrows):
+        if ws.ncols < 2:
+            continue
+        fecha_val = _xls_date_string(ws.cell(row_idx, 0), wb.datemode) if ws.ncols > 0 else ''
+        concepto_val = ''
+        if ws.ncols > 1:
+            concepto_cell = ws.cell(row_idx, 1)
+            concepto_val = str(concepto_cell.value).strip() if concepto_cell.value else ''
+        importe_val = '0'
+        if ws.ncols > 2:
+            importe_cell = ws.cell(row_idx, 2)
+            importe_val = str(importe_cell.value) if importe_cell.value else '0'
+
+        if not fecha_val and not concepto_val and importe_val == '0':
+            continue
+
+        rows.append({'fecha': fecha_val, 'concepto': concepto_val, 'importe': importe_val})
+
+    return rows, headers
+
+
+def _parse_csv_text(content: bytes) -> tuple:
+    """Parse CSV bytes. Returns (rows, headers)."""
+    text_content = content.decode('utf-8')
+    separator = detect_separator(text_content)
+    reader = csv.DictReader(io.StringIO(text_content), delimiter=separator)
+    rows = [{k.strip().lower(): v.strip() for k, v in row.items()} for row in reader]
+    return rows, []
+
+
+async def _build_preview_row(row: dict, source: str, include_type: bool) -> dict:
+    """Turn a parsed source row into a preview row with rule categorization."""
+    date = normalize_date(row.get('fecha', ''))
+    concept = row.get('concepto', '')
+    amount = _parse_amount(row.get('importe', '0'))
+    category_id, subcategory_id = await apply_rules(concept, amount, source)
+
+    preview = {
+        'date': date,
+        'concept': concept,
+        'amount': amount,
+        'category_id': category_id,
+        'subcategory_id': subcategory_id,
+    }
+    if include_type:
+        preview['type'] = 'income' if amount > 0 else 'expense'
+    return preview
+
+
 # --- IMPORT CSV/XLSX ---
 @api_router.post("/import/parse-csv")
 async def parse_csv(file: UploadFile = File(...), import_type: str = Query(...), entity_id: str = Query(...)):
     """Parse CSV or XLSX and return preview with auto-categorization"""
     content = await file.read()
     filename = file.filename.lower()
-    
-    rows = []
-    detected_columns = []
-    
-    # Detect file type and parse accordingly
-    if filename.endswith('.xlsx'):
-        # Parse XLSX (Excel 2007+)
-        try:
-            wb = load_workbook(io.BytesIO(content), read_only=True, data_only=True)
-            ws = wb.active
-            
-            # Get header row (first row)
-            headers = [cell.value.strip().lower() if cell.value else '' for cell in ws[1]]
-            detected_columns = headers.copy()
-            
-            # Get data rows - map by position: A=fecha, B=concepto, C=importe
-            for row in ws.iter_rows(min_row=2, values_only=True):
-                if not row:
-                    continue
-                
-                # Ensure we have at least 3 columns, pad with None if needed
-                row_list = list(row) + [None] * (3 - len(row))
-                
-                # Skip if all relevant columns are empty
-                if not row_list[0] and not row_list[1] and not row_list[2]:
-                    continue
-                
-                # Handle date - might be datetime object from Excel
-                fecha_val = row_list[0]
-                if isinstance(fecha_val, datetime):
-                    fecha_str = fecha_val.strftime('%d/%m/%Y')
-                else:
-                    fecha_str = str(fecha_val).strip() if fecha_val is not None else ''
-                
-                row_dict = {
-                    'fecha': fecha_str,
-                    'concepto': str(row_list[1]).strip() if row_list[1] is not None else '',
-                    'importe': str(row_list[2]) if row_list[2] is not None else '0'
-                }
-                rows.append(row_dict)
-            
-            wb.close()
-        except Exception as e:
-            logging.error(f"Error parsing XLSX: {e}")
-            raise HTTPException(status_code=400, detail=f"Error al procesar archivo XLSX: {str(e)}")
-    
-    elif filename.endswith('.xls'):
-        # Parse XLS (Excel 97-2003)
-        try:
-            wb = xlrd.open_workbook(file_contents=content)
-            ws = wb.sheet_by_index(0)
-            
-            # Get header row (first row)
-            headers = [str(cell.value).strip().lower() if cell.value else '' for cell in ws.row(0)]
-            detected_columns = headers.copy()
-            
-            # Get data rows - map by position: A=fecha, B=concepto, C=importe
-            for row_idx in range(1, ws.nrows):
-                # Check if we have enough columns
-                if ws.ncols < 2:  # At least need 2 columns
-                    continue
-                
-                # Column A (index 0) = fecha
-                fecha_val = ''
-                if ws.ncols > 0:
-                    fecha_cell = ws.cell(row_idx, 0)
-                    if fecha_cell.ctype == xlrd.XL_CELL_DATE:
-                        date_tuple = xlrd.xldate_as_tuple(fecha_cell.value, wb.datemode)
-                        fecha_val = f"{date_tuple[2]:02d}/{date_tuple[1]:02d}/{date_tuple[0]}"
-                    else:
-                        fecha_val = str(fecha_cell.value).strip() if fecha_cell.value else ''
-                
-                # Column B (index 1) = concepto
-                concepto_val = ''
-                if ws.ncols > 1:
-                    concepto_cell = ws.cell(row_idx, 1)
-                    concepto_val = str(concepto_cell.value).strip() if concepto_cell.value else ''
-                
-                # Column C (index 2) = importe
-                importe_val = '0'
-                if ws.ncols > 2:
-                    importe_cell = ws.cell(row_idx, 2)
-                    importe_val = str(importe_cell.value) if importe_cell.value else '0'
-                
-                # Skip if all relevant columns are empty
-                if not fecha_val and not concepto_val and importe_val == '0':
-                    continue
-                
-                row_dict = {
-                    'fecha': fecha_val,
-                    'concepto': concepto_val,
-                    'importe': importe_val
-                }
-                rows.append(row_dict)
-            
-        except Exception as e:
-            logging.error(f"Error parsing XLS: {e}")
-            raise HTTPException(status_code=400, detail=f"Error al procesar archivo XLS: {str(e)}")
-    
-    elif filename.endswith('.csv'):
-        # Parse CSV
-        try:
-            text_content = content.decode('utf-8')
-            separator = detect_separator(text_content)
-            reader = csv.DictReader(io.StringIO(text_content), delimiter=separator)
-            
-            for row in reader:
-                # Normalize column names (lowercase, strip)
-                row_dict = {k.strip().lower(): v.strip() for k, v in row.items()}
-                rows.append(row_dict)
-        except Exception as e:
-            logging.error(f"Error parsing CSV: {e}")
-            raise HTTPException(status_code=400, detail=f"Error al procesar archivo CSV: {str(e)}")
-    
-    else:
-        raise HTTPException(status_code=400, detail="Formato de archivo no soportado. Use .csv, .xls o .xlsx")
-    
-    # Log for debugging
+
+    try:
+        if filename.endswith('.xlsx'):
+            rows, detected_columns = _parse_xlsx(content)
+        elif filename.endswith('.xls'):
+            rows, detected_columns = _parse_xls(content)
+        elif filename.endswith('.csv'):
+            rows, detected_columns = _parse_csv_text(content)
+        else:
+            raise HTTPException(status_code=400, detail="Formato de archivo no soportado. Use .csv, .xls o .xlsx")
+    except HTTPException:
+        raise
+    except Exception as e:
+        logging.error(f"Error parsing file {filename}: {e}")
+        raise HTTPException(status_code=400, detail=f"Error al procesar archivo: {str(e)}")
+
     logging.info(f"Parsed {len(rows)} rows from file: {filename}")
     if rows:
         logging.info(f"First row sample: {rows[0]}")
-    
-    # Process rows
-    preview = []
-    
-    for row in rows:
-        if import_type == 'account':
-            # Direct mapping - columns already mapped by position
-            date_raw = row.get('fecha', '')
-            concept = row.get('concepto', '')
-            amount_str = row.get('importe', '0')
-            
-            date = normalize_date(date_raw)
-            
-            # Parse amount - handle both CSV (1.234,56) and Excel (1234.56) formats
-            try:
-                # Check if it's already a float (from Excel) or needs parsing (from CSV)
-                if ',' in amount_str and '.' in amount_str:
-                    # CSV format: 1.234,56 -> remove thousands separator, replace decimal
-                    amount_str = amount_str.replace('.', '').replace(',', '.')
-                elif ',' in amount_str:
-                    # Only comma: 1234,56 -> replace decimal separator
-                    amount_str = amount_str.replace(',', '.')
-                # else: Excel format or no separators - use as is
-                
-                amount = float(amount_str)
-            except:
-                amount = 0.0
-            
-            tx_type = 'income' if amount > 0 else 'expense'
-            category_id, subcategory_id = await apply_rules(concept, amount, 'bank')
-            
-            preview.append({
-                'date': date,
-                'concept': concept,
-                'amount': amount,
-                'type': tx_type,
-                'category_id': category_id,
-                'subcategory_id': subcategory_id
-            })
-        
-        elif import_type == 'card':
-            # Direct mapping - columns already mapped by position
-            date_raw = row.get('fecha', '')
-            concept = row.get('concepto', '')
-            amount_str = row.get('importe', '0')
-            
-            date = normalize_date(date_raw)
-            
-            # Parse amount - handle both CSV and Excel formats
-            try:
-                if ',' in amount_str and '.' in amount_str:
-                    amount_str = amount_str.replace('.', '').replace(',', '.')
-                elif ',' in amount_str:
-                    amount_str = amount_str.replace(',', '.')
-                
-                amount = float(amount_str)
-            except:
-                amount = 0.0
-            
-            category_id, subcategory_id = await apply_rules(concept, amount, 'card')
-            
-            preview.append({
-                'date': date,
-                'concept': concept,
-                'amount': amount,
-                'category_id': category_id,
-                'subcategory_id': subcategory_id
-            })
-    
+
+    source = 'bank' if import_type == 'account' else 'card'
+    include_type = import_type == 'account'
+    preview = [await _build_preview_row(row, source, include_type) for row in rows]
+
     return {
         'preview': preview,
         'count': len(preview),
         'entity_id': entity_id,
         'import_type': import_type,
-        'detected_columns': detected_columns
+        'detected_columns': detected_columns,
     }
 
 @api_router.post("/import/confirm")

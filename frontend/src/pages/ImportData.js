@@ -1,10 +1,11 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import axios from 'axios';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { toast } from 'sonner';
 import { Upload, FileText, CheckCircle, AlertCircle } from 'lucide-react';
+import { formatCurrencyEUR } from '../utils/format';
 
 const API = `${process.env.REACT_APP_BACKEND_URL}/api`;
 
@@ -20,48 +21,48 @@ export default function ImportData() {
   const [subcategories, setSubcategories] = useState([]);
   const [loading, setLoading] = useState(false);
 
+  const loadAccounts = useCallback(async () => {
+    try {
+      const response = await axios.get(`${API}/accounts`);
+      setAccounts(response.data);
+    } catch (error) {
+      toast.error('Error al cargar cuentas');
+    }
+  }, []);
+
+  const loadCards = useCallback(async () => {
+    try {
+      const response = await axios.get(`${API}/credit-cards`);
+      setCards(response.data);
+    } catch (error) {
+      toast.error('Error al cargar tarjetas');
+    }
+  }, []);
+
+  const loadCategories = useCallback(async () => {
+    try {
+      const response = await axios.get(`${API}/categories`);
+      setCategories(response.data);
+    } catch (error) {
+      toast.error('Error al cargar categorías');
+    }
+  }, []);
+
+  const loadSubcategories = useCallback(async () => {
+    try {
+      const response = await axios.get(`${API}/subcategories`);
+      setSubcategories(response.data);
+    } catch (error) {
+      toast.error('Error al cargar subcategorías');
+    }
+  }, []);
+
   useEffect(() => {
     loadAccounts();
     loadCards();
     loadCategories();
     loadSubcategories();
-  }, []);
-
-  const loadAccounts = async () => {
-    try {
-      const response = await axios.get(`${API}/accounts`);
-      setAccounts(response.data);
-    } catch (error) {
-      console.error('Error loading accounts:', error);
-    }
-  };
-
-  const loadCards = async () => {
-    try {
-      const response = await axios.get(`${API}/credit-cards`);
-      setCards(response.data);
-    } catch (error) {
-      console.error('Error loading cards:', error);
-    }
-  };
-
-  const loadCategories = async () => {
-    try {
-      const response = await axios.get(`${API}/categories`);
-      setCategories(response.data);
-    } catch (error) {
-      console.error('Error loading categories:', error);
-    }
-  };
-
-  const loadSubcategories = async () => {
-    try {
-      const response = await axios.get(`${API}/subcategories`);
-      setSubcategories(response.data);
-    } catch (error) {
-      console.error('Error loading subcategories:', error);
-    }
-  };
+  }, [loadAccounts, loadCards, loadCategories, loadSubcategories]);
 
   const handleFileChange = (e) => {
     const selectedFile = e.target.files[0];
@@ -87,11 +88,15 @@ export default function ImportData() {
         { headers: { 'Content-Type': 'multipart/form-data' } }
       );
 
-      setPreview(response.data.preview);
+      // Assign a stable unique id per preview row to avoid using array index as key
+      const enriched = response.data.preview.map((row, idx) => ({
+        ...row,
+        _rowKey: `${idx}-${row.date}-${row.concept}-${row.amount}`,
+      }));
+      setPreview(enriched);
       setStep(3);
       toast.success(`${response.data.count} transacciones detectadas`);
     } catch (error) {
-      console.error('Error uploading file:', error);
       toast.error('Error al procesar el archivo CSV');
     } finally {
       setLoading(false);
@@ -101,16 +106,17 @@ export default function ImportData() {
   const handleConfirm = async () => {
     try {
       setLoading(true);
+      // Strip local-only _rowKey before sending
+      const clean = preview.map(({ _rowKey, ...rest }) => rest);
       const response = await axios.post(`${API}/import/confirm`, {
         import_type: importType,
         entity_id: selectedEntity,
-        transactions: preview
+        transactions: clean,
       });
 
       toast.success(`Importadas: ${response.data.inserted}, Duplicadas: ${response.data.duplicates}`);
       resetForm();
     } catch (error) {
-      console.error('Error confirming import:', error);
       toast.error('Error al confirmar la importación');
     } finally {
       setLoading(false);
@@ -124,22 +130,20 @@ export default function ImportData() {
     setSelectedEntity('');
   };
 
-  const getCategoryName = (id) => {
-    const cat = categories.find(c => c.id === id);
-    return cat ? cat.name : 'Sin categoría';
-  };
-
-  const formatCurrency = (value) => {
-    return new Intl.NumberFormat('es-ES', {
-      style: 'currency',
-      currency: 'EUR',
-      minimumFractionDigits: 2,
-      maximumFractionDigits: 2,
-      useGrouping: true
-    }).format(value);
-  };
+  const sortedCategories = useMemo(
+    () => [...categories].sort((a, b) => a.name.localeCompare(b.name)),
+    [categories]
+  );
 
   const entities = importType === 'account' ? accounts : cards;
+
+  const updatePreviewRow = useCallback((rowKey, changes) => {
+    setPreview((prev) =>
+      prev.map((row) => (row._rowKey === rowKey ? { ...row, ...changes } : row))
+    );
+  }, []);
+
+  const stepLabels = ['Seleccionar', 'Subir CSV', 'Previsualizar', 'Confirmar'];
 
   return (
     <div className="space-y-6">
@@ -155,19 +159,22 @@ export default function ImportData() {
       <Card className="border border-gray-200">
         <CardContent className="pt-6">
           <div className="flex items-center justify-between">
-            {['Seleccionar', 'Subir CSV', 'Previsualizar', 'Confirmar'].map((label, idx) => (
-              <div key={idx} className="flex items-center">
-                <div className={`flex items-center justify-center w-8 h-8 rounded-full ${
-                  step > idx + 1 ? 'bg-green-500 text-white' :
-                  step === idx + 1 ? 'bg-indigo-600 text-white' :
-                  'bg-gray-200 text-gray-500'
-                }`}>
-                  {step > idx + 1 ? '✓' : idx + 1}
+            {stepLabels.map((label, idx) => {
+              const stepNumber = idx + 1;
+              return (
+                <div key={label} className="flex items-center">
+                  <div className={`flex items-center justify-center w-8 h-8 rounded-full ${
+                    step > stepNumber ? 'bg-green-500 text-white' :
+                    step === stepNumber ? 'bg-indigo-600 text-white' :
+                    'bg-gray-200 text-gray-500'
+                  }`}>
+                    {step > stepNumber ? '✓' : stepNumber}
+                  </div>
+                  <span className="ml-2 text-sm font-medium text-gray-700 hidden md:inline">{label}</span>
+                  {idx < 3 && <div className="w-12 h-0.5 bg-gray-300 mx-2 hidden md:block" />}
                 </div>
-                <span className="ml-2 text-sm font-medium text-gray-700 hidden md:inline">{label}</span>
-                {idx < 3 && <div className="w-12 h-0.5 bg-gray-300 mx-2 hidden md:block" />}
-              </div>
-            ))}
+              );
+            })}
           </div>
         </CardContent>
       </Card>
@@ -297,30 +304,25 @@ export default function ImportData() {
                   </tr>
                 </thead>
                 <tbody>
-                  {preview.map((tx, idx) => {
-                    const categorySubcategories = subcategories.filter(s => s.category_id === tx.category_id);
+                  {preview.map((tx) => {
+                    const categorySubcategories = subcategories.filter((s) => s.category_id === tx.category_id);
                     return (
-                      <tr key={idx} className="border-b border-gray-100">
+                      <tr key={tx._rowKey} className="border-b border-gray-100">
                         <td className="py-2">{tx.date}</td>
                         <td className="py-2 max-w-[200px] truncate">{tx.concept}</td>
                         <td className={`py-2 font-semibold ${tx.amount < 0 ? 'text-red-600' : 'text-green-600'}`}>
-                          {formatCurrency(tx.amount)}
+                          {formatCurrencyEUR(tx.amount)}
                         </td>
                         <td className="py-2">
                           <Select
                             value={tx.category_id || ''}
-                            onValueChange={(val) => {
-                              const updated = [...preview];
-                              updated[idx].category_id = val;
-                              updated[idx].subcategory_id = null;
-                              setPreview(updated);
-                            }}
+                            onValueChange={(val) => updatePreviewRow(tx._rowKey, { category_id: val, subcategory_id: null })}
                           >
                             <SelectTrigger className="h-8 text-xs w-32">
                               <SelectValue placeholder="Sin categoría" />
                             </SelectTrigger>
                             <SelectContent>
-                              {categories.sort((a, b) => a.name.localeCompare(b.name)).map((cat) => (
+                              {sortedCategories.map((cat) => (
                                 <SelectItem key={cat.id} value={cat.id}>{cat.name}</SelectItem>
                               ))}
                             </SelectContent>
@@ -330,18 +332,14 @@ export default function ImportData() {
                           {categorySubcategories.length > 0 && (
                             <Select
                               value={tx.subcategory_id || 'none'}
-                              onValueChange={(val) => {
-                                const updated = [...preview];
-                                updated[idx].subcategory_id = val === 'none' ? null : val;
-                                setPreview(updated);
-                              }}
+                              onValueChange={(val) => updatePreviewRow(tx._rowKey, { subcategory_id: val === 'none' ? null : val })}
                             >
                               <SelectTrigger className="h-8 text-xs w-32">
                                 <SelectValue placeholder="Opcional" />
                               </SelectTrigger>
                               <SelectContent>
                                 <SelectItem value="none">Ninguna</SelectItem>
-                                {categorySubcategories.sort((a, b) => a.name.localeCompare(b.name)).map((sub) => (
+                                {[...categorySubcategories].sort((a, b) => a.name.localeCompare(b.name)).map((sub) => (
                                   <SelectItem key={sub.id} value={sub.id}>{sub.name}</SelectItem>
                                 ))}
                               </SelectContent>

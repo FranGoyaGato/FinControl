@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import axios from 'axios';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -6,8 +6,103 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { toast } from 'sonner';
 import { TrendingDown, Search, Download, ChevronDown, ChevronRight } from 'lucide-react';
 import * as XLSX from 'xlsx';
+import { formatCurrencyEUR, buildMonthRangeParams } from '../utils/format';
 
 const API = `${process.env.REACT_APP_BACKEND_URL}/api`;
+
+const formatExpense = (value) => formatCurrencyEUR(Math.abs(value));
+
+function ExpenseRow({ tx, subcategories, categories, onUpdate }) {
+  const txSubcategories = useMemo(
+    () => subcategories.filter((s) => s.category_id === tx.category_id),
+    [subcategories, tx.category_id]
+  );
+  const sortedCategories = useMemo(
+    () => [...categories].sort((a, b) => a.name.localeCompare(b.name)),
+    [categories]
+  );
+  const sortedSubs = useMemo(
+    () => [...txSubcategories].sort((a, b) => a.name.localeCompare(b.name)),
+    [txSubcategories]
+  );
+
+  return (
+    <tr data-testid={`expense-row-${tx.id}`} className="border-b border-gray-100">
+      <td className="py-3 text-sm">{new Date(tx.date).toLocaleDateString('es-ES')}</td>
+      <td className="py-3 text-sm max-w-[200px] truncate">{tx.concept}</td>
+      <td className="py-3 text-sm font-semibold text-red-700">{formatExpense(tx.amount)}</td>
+      <td className="py-3 text-sm">
+        <Select value={tx.category_id || ''} onValueChange={(val) => onUpdate(tx.id, val, null)}>
+          <SelectTrigger className="h-8 text-xs w-32">
+            <SelectValue placeholder="Sin categoría" />
+          </SelectTrigger>
+          <SelectContent>
+            {sortedCategories.map((cat) => (
+              <SelectItem key={cat.id} value={cat.id}>{cat.name}</SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      </td>
+      <td className="py-3 text-sm">
+        {txSubcategories.length > 0 && (
+          <Select
+            value={tx.subcategory_id || 'none'}
+            onValueChange={(val) => onUpdate(tx.id, tx.category_id, val === 'none' ? null : val)}
+          >
+            <SelectTrigger className="h-8 text-xs w-32">
+              <SelectValue placeholder="Ninguna" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="none">Ninguna</SelectItem>
+              {sortedSubs.map((sub) => (
+                <SelectItem key={sub.id} value={sub.id}>{sub.name}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        )}
+      </td>
+    </tr>
+  );
+}
+
+function CategoryGroup({ categoryData, expanded, onToggle }) {
+  const hasSubcategories = Object.keys(categoryData.subcategories).length > 0;
+  const sortedSubs = useMemo(
+    () =>
+      Object.entries(categoryData.subcategories).sort(([a], [b]) => a.localeCompare(b)),
+    [categoryData.subcategories]
+  );
+
+  return (
+    <div data-testid={`category-group-${categoryData.id}`} className="border border-gray-200 rounded-lg">
+      <div
+        data-testid={`category-group-header-${categoryData.id}`}
+        className={`flex items-center justify-between p-3 rounded-lg ${hasSubcategories ? 'cursor-pointer hover:bg-gray-50' : 'bg-gray-50'}`}
+        onClick={() => hasSubcategories && onToggle(categoryData.id)}
+      >
+        <div className="flex items-center gap-2">
+          {hasSubcategories && (
+            expanded ?
+              <ChevronDown className="w-4 h-4 text-gray-500" /> :
+              <ChevronRight className="w-4 h-4 text-gray-500" />
+          )}
+          <span className="font-medium text-gray-700">{categoryData.name}</span>
+        </div>
+        <span className="font-semibold text-red-700">{formatExpense(categoryData.total)}</span>
+      </div>
+      {hasSubcategories && expanded && (
+        <div className="pl-8 pr-3 pb-3 space-y-2">
+          {sortedSubs.map(([subName, subAmount]) => (
+            <div key={subName} className="flex items-center justify-between py-2 text-sm">
+              <span className="text-gray-600">• {subName}</span>
+              <span className="font-medium text-red-600">{formatExpense(subAmount)}</span>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
 
 export default function Expenses() {
   const [transactions, setTransactions] = useState([]);
@@ -21,77 +116,69 @@ export default function Expenses() {
   const [expandedCategories, setExpandedCategories] = useState({});
   const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
-    loadCategories();
-    loadSubcategories();
-  }, []);
-
-  useEffect(() => {
-    loadTransactions();
-  }, [selectedYear, selectedMonth]);
-
-  const loadCategories = async () => {
+  const loadCategories = useCallback(async () => {
     try {
       const response = await axios.get(`${API}/categories`);
       setCategories(response.data);
     } catch (error) {
-      console.error('Error loading categories:', error);
+      toast.error('Error al cargar categorías');
     }
-  };
+  }, []);
 
-  const loadSubcategories = async () => {
+  const loadSubcategories = useCallback(async () => {
     try {
       const response = await axios.get(`${API}/subcategories`);
       setSubcategories(response.data);
     } catch (error) {
-      console.error('Error loading subcategories:', error);
+      toast.error('Error al cargar subcategorías');
     }
-  };
+  }, []);
 
-  const loadTransactions = async () => {
+  const loadTransactions = useCallback(async () => {
     try {
       setLoading(true);
-      const params = { type: 'expense' };
-      
-      // Add date filters if selected
-      if (selectedYear && selectedMonth) {
-        const month = selectedMonth.padStart(2, '0');
-        params.date_from = `${selectedYear}-${month}-01`;
-        const lastDay = new Date(parseInt(selectedYear), parseInt(selectedMonth), 0).getDate();
-        params.date_to = `${selectedYear}-${month}-${String(lastDay).padStart(2, '0')}`;
-      } else if (selectedYear) {
-        params.date_from = `${selectedYear}-01-01`;
-        params.date_to = `${selectedYear}-12-31`;
-      }
-      
+      const params = { type: 'expense', ...buildMonthRangeParams(selectedYear, selectedMonth) };
       const response = await axios.get(`${API}/transactions`, { params });
       setTransactions(response.data);
     } catch (error) {
-      console.error('Error loading transactions:', error);
       toast.error('Error al cargar gastos');
     } finally {
       setLoading(false);
     }
-  };
+  }, [selectedYear, selectedMonth]);
+
+  useEffect(() => {
+    loadCategories();
+    loadSubcategories();
+  }, [loadCategories, loadSubcategories]);
+
+  useEffect(() => {
+    loadTransactions();
+  }, [loadTransactions]);
+
+  const getCategoryName = useCallback((id) => {
+    const cat = categories.find((c) => c.id === id);
+    return cat ? cat.name : 'Sin categoría';
+  }, [categories]);
+
+  const getSubcategoryName = useCallback((id) => {
+    const sub = subcategories.find((s) => s.id === id);
+    return sub ? sub.name : '';
+  }, [subcategories]);
 
   const updateTransactionCategory = async (txId, categoryId, subcategoryId) => {
     try {
-      const tx = transactions.find(t => t.id === txId);
-      
+      const tx = transactions.find((t) => t.id === txId);
+
       if (tx && categoryId) {
-        // Apply to ALL transactions with same concept
-        const sameConcept = transactions.filter(t => t.concept === tx.concept);
-        
-        // Update all matching transactions
-        const updatePromises = sameConcept.map(t => 
+        const sameConcept = transactions.filter((t) => t.concept === tx.concept);
+        const updatePromises = sameConcept.map((t) =>
           axios.put(`${API}/transactions/${t.id}`, null, {
-            params: { category_id: categoryId, subcategory_id: subcategoryId }
+            params: { category_id: categoryId, subcategory_id: subcategoryId },
           })
         );
-        
         await Promise.all(updatePromises);
-        
-        // Create automatic rule for future transactions
+
         try {
           await axios.post(`${API}/rules`, {
             source: 'bank',
@@ -100,7 +187,7 @@ export default function Expenses() {
             category_id: categoryId,
             subcategory_id: subcategoryId,
             priority: 5,
-            active: true
+            active: true,
           });
           toast.success(`Categoría aplicada a ${sameConcept.length} movimiento(s) y regla creada`);
         } catch (ruleError) {
@@ -108,25 +195,82 @@ export default function Expenses() {
         }
       } else {
         await axios.put(`${API}/transactions/${txId}`, null, {
-          params: { category_id: categoryId, subcategory_id: subcategoryId }
+          params: { category_id: categoryId, subcategory_id: subcategoryId },
         });
         toast.success('Categoría actualizada');
       }
-      
+
       loadTransactions();
     } catch (error) {
-      console.error('Error updating category:', error);
       toast.error('Error al actualizar categoría');
     }
   };
 
+  const filteredTransactions = useMemo(() => {
+    return transactions.filter((tx) => {
+      const matchesSearch = tx.concept.toLowerCase().includes(searchTerm.toLowerCase());
+      let matchesCategory = true;
+      if (selectedCategory === 'uncategorized') {
+        matchesCategory = !tx.category_id || tx.category_id === '';
+      } else if (selectedCategory) {
+        matchesCategory = tx.category_id === selectedCategory;
+      }
+      const matchesSubcategory = !selectedSubcategory || tx.subcategory_id === selectedSubcategory;
+      return matchesSearch && matchesCategory && matchesSubcategory;
+    });
+  }, [transactions, searchTerm, selectedCategory, selectedSubcategory]);
+
+  const totalExpense = useMemo(
+    () => filteredTransactions.reduce((sum, tx) => sum + Math.abs(tx.amount), 0),
+    [filteredTransactions]
+  );
+
+  const groupedByCategory = useMemo(() => {
+    return filteredTransactions.reduce((acc, tx) => {
+      const catId = tx.category_id || 'uncategorized';
+      const catName = getCategoryName(tx.category_id);
+      if (!acc[catId]) {
+        acc[catId] = { id: catId, name: catName, total: 0, subcategories: {} };
+      }
+      acc[catId].total += Math.abs(tx.amount);
+      if (tx.subcategory_id) {
+        const subName = getSubcategoryName(tx.subcategory_id);
+        if (!acc[catId].subcategories[subName]) acc[catId].subcategories[subName] = 0;
+        acc[catId].subcategories[subName] += Math.abs(tx.amount);
+      }
+      return acc;
+    }, {});
+  }, [filteredTransactions, getCategoryName, getSubcategoryName]);
+
+  const sortedGroupedCategories = useMemo(
+    () => Object.values(groupedByCategory).sort((a, b) => a.name.localeCompare(b.name)),
+    [groupedByCategory]
+  );
+
+  const sortedCategoriesFilter = useMemo(
+    () => [...categories].sort((a, b) => a.name.localeCompare(b.name)),
+    [categories]
+  );
+
+  const sortedSubcategoriesFilter = useMemo(
+    () =>
+      subcategories
+        .filter((sub) => !selectedCategory || sub.category_id === selectedCategory)
+        .sort((a, b) => a.name.localeCompare(b.name)),
+    [subcategories, selectedCategory]
+  );
+
+  const toggleCategory = useCallback((catId) => {
+    setExpandedCategories((prev) => ({ ...prev, [catId]: !prev[catId] }));
+  }, []);
+
   const exportToExcel = () => {
-    const data = filteredTransactions.map(tx => ({
+    const data = filteredTransactions.map((tx) => ({
       Fecha: tx.date,
       Concepto: tx.concept,
       Importe: Math.abs(tx.amount),
       Categoría: getCategoryName(tx.category_id),
-      Subcategoría: getSubcategoryName(tx.subcategory_id)
+      Subcategoría: getSubcategoryName(tx.subcategory_id),
     }));
 
     const ws = XLSX.utils.json_to_sheet(data);
@@ -134,70 +278,6 @@ export default function Expenses() {
     XLSX.utils.book_append_sheet(wb, ws, 'Gastos');
     XLSX.writeFile(wb, `gastos_${new Date().toISOString().slice(0, 10)}.xlsx`);
   };
-
-  const getCategoryName = (id) => {
-    const cat = categories.find(c => c.id === id);
-    return cat ? cat.name : 'Sin categoría';
-  };
-
-  const getSubcategoryName = (id) => {
-    const sub = subcategories.find(s => s.id === id);
-    return sub ? sub.name : '';
-  };
-
-  const formatCurrency = (value) => {
-    return new Intl.NumberFormat('es-ES', {
-      style: 'currency',
-      currency: 'EUR',
-      minimumFractionDigits: 2,
-      maximumFractionDigits: 2,
-      useGrouping: true
-    }).format(Math.abs(value));
-  };
-
-  const filteredTransactions = transactions.filter(tx => {
-    const matchesSearch = tx.concept.toLowerCase().includes(searchTerm.toLowerCase());
-    
-    let matchesCategory = true;
-    if (selectedCategory === 'uncategorized') {
-      matchesCategory = !tx.category_id || tx.category_id === '';
-    } else if (selectedCategory) {
-      matchesCategory = tx.category_id === selectedCategory;
-    }
-    
-    const matchesSubcategory = !selectedSubcategory || tx.subcategory_id === selectedSubcategory;
-    return matchesSearch && matchesCategory && matchesSubcategory;
-  });
-
-  const totalExpense = filteredTransactions.reduce((sum, tx) => sum + Math.abs(tx.amount), 0);
-
-  // Group by category with subcategories
-  const groupedByCategory = filteredTransactions.reduce((acc, tx) => {
-    const catId = tx.category_id || 'uncategorized';
-    const catName = getCategoryName(tx.category_id);
-    
-    if (!acc[catId]) {
-      acc[catId] = {
-        id: catId,
-        name: catName,
-        total: 0,
-        subcategories: {}
-      };
-    }
-    
-    acc[catId].total += Math.abs(tx.amount);
-    
-    // Group by subcategory within category
-    if (tx.subcategory_id) {
-      const subName = getSubcategoryName(tx.subcategory_id);
-      if (!acc[catId].subcategories[subName]) {
-        acc[catId].subcategories[subName] = 0;
-      }
-      acc[catId].subcategories[subName] += Math.abs(tx.amount);
-    }
-    
-    return acc;
-  }, {});
 
   return (
     <div className="space-y-6">
@@ -215,18 +295,16 @@ export default function Expenses() {
         </Button>
       </div>
 
-      {/* Summary Card */}
       <Card className="border border-gray-200 bg-gradient-to-br from-red-50 to-rose-50">
         <CardContent className="pt-6">
           <div className="text-sm text-gray-600 mb-1">Total Gastos</div>
           <div className="text-3xl font-bold text-red-700" style={{ fontFamily: 'Space Grotesk, sans-serif' }}>
-            {formatCurrency(totalExpense)}
+            {formatExpense(totalExpense)}
           </div>
           <div className="text-sm text-gray-600 mt-2">{filteredTransactions.length} transacciones</div>
         </CardContent>
       </Card>
 
-      {/* Date Filters */}
       <Card className="border border-gray-200">
         <CardContent className="pt-6">
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
@@ -269,8 +347,8 @@ export default function Expenses() {
               </Select>
             </div>
             <div className="flex items-end">
-              <Button 
-                variant="outline" 
+              <Button
+                variant="outline"
                 onClick={() => { setSelectedYear(''); setSelectedMonth(''); }}
                 className="w-full"
                 data-testid="clear-filters-btn-expenses"
@@ -282,7 +360,6 @@ export default function Expenses() {
         </CardContent>
       </Card>
 
-      {/* Search and Category Filters */}
       <Card data-testid="expenses-filters" className="border border-gray-200">
         <CardContent className="pt-6">
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
@@ -304,7 +381,7 @@ export default function Expenses() {
               <SelectContent>
                 <SelectItem value="all">Todas las categorías</SelectItem>
                 <SelectItem value="uncategorized">Sin categoría</SelectItem>
-                {categories.sort((a, b) => a.name.localeCompare(b.name)).map((cat) => (
+                {sortedCategoriesFilter.map((cat) => (
                   <SelectItem key={cat.id} value={cat.id}>{cat.name}</SelectItem>
                 ))}
               </SelectContent>
@@ -315,71 +392,33 @@ export default function Expenses() {
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">Todas las subcategorías</SelectItem>
-                {subcategories
-                  .filter(sub => !selectedCategory || sub.category_id === selectedCategory)
-                  .sort((a, b) => a.name.localeCompare(b.name))
-                  .map((sub) => (
-                    <SelectItem key={sub.id} value={sub.id}>{sub.name}</SelectItem>
-                  ))}
+                {sortedSubcategoriesFilter.map((sub) => (
+                  <SelectItem key={sub.id} value={sub.id}>{sub.name}</SelectItem>
+                ))}
               </SelectContent>
             </Select>
           </div>
         </CardContent>
       </Card>
 
-      {/* Grouped Summary */}
       <Card className="border border-gray-200">
         <CardHeader>
           <CardTitle>Resumen por Categoría</CardTitle>
         </CardHeader>
         <CardContent>
           <div className="space-y-2">
-            {Object.values(groupedByCategory)
-              .sort((a, b) => a.name.localeCompare(b.name))
-              .map((categoryData) => {
-                const hasSubcategories = Object.keys(categoryData.subcategories).length > 0;
-                const isExpanded = expandedCategories[categoryData.id];
-                
-                return (
-                  <div key={categoryData.id} className="border border-gray-200 rounded-lg">
-                    <div 
-                      className={`flex items-center justify-between p-3 rounded-lg ${hasSubcategories ? 'cursor-pointer hover:bg-gray-50' : 'bg-gray-50'}`}
-                      onClick={() => hasSubcategories && setExpandedCategories({
-                        ...expandedCategories,
-                        [categoryData.id]: !isExpanded
-                      })}
-                    >
-                      <div className="flex items-center gap-2">
-                        {hasSubcategories && (
-                          isExpanded ? 
-                            <ChevronDown className="w-4 h-4 text-gray-500" /> : 
-                            <ChevronRight className="w-4 h-4 text-gray-500" />
-                        )}
-                        <span className="font-medium text-gray-700">{categoryData.name}</span>
-                      </div>
-                      <span className="font-semibold text-red-700">{formatCurrency(categoryData.total)}</span>
-                    </div>
-                    
-                    {hasSubcategories && isExpanded && (
-                      <div className="pl-8 pr-3 pb-3 space-y-2">
-                        {Object.entries(categoryData.subcategories)
-                          .sort(([a], [b]) => a.localeCompare(b))
-                          .map(([subName, subAmount]) => (
-                            <div key={subName} className="flex items-center justify-between py-2 text-sm">
-                              <span className="text-gray-600">• {subName}</span>
-                              <span className="font-medium text-red-600">{formatCurrency(subAmount)}</span>
-                            </div>
-                          ))}
-                      </div>
-                    )}
-                  </div>
-                );
-              })}
+            {sortedGroupedCategories.map((categoryData) => (
+              <CategoryGroup
+                key={categoryData.id}
+                categoryData={categoryData}
+                expanded={!!expandedCategories[categoryData.id]}
+                onToggle={toggleCategory}
+              />
+            ))}
           </div>
         </CardContent>
       </Card>
 
-      {/* Transactions Table */}
       <Card data-testid="expenses-transactions-table" className="border border-gray-200">
         <CardHeader>
           <CardTitle>Transacciones</CardTitle>
@@ -407,49 +446,15 @@ export default function Expenses() {
                   </tr>
                 </thead>
                 <tbody>
-                  {filteredTransactions.map((tx) => {
-                    const txSubcategories = subcategories.filter(s => s.category_id === tx.category_id);
-                    return (
-                      <tr key={tx.id} data-testid={`expense-row-${tx.id}`} className="border-b border-gray-100">
-                        <td className="py-3 text-sm">{new Date(tx.date).toLocaleDateString('es-ES')}</td>
-                        <td className="py-3 text-sm max-w-[200px] truncate">{tx.concept}</td>
-                        <td className="py-3 text-sm font-semibold text-red-700">{formatCurrency(tx.amount)}</td>
-                        <td className="py-3 text-sm">
-                          <Select
-                            value={tx.category_id || ''}
-                            onValueChange={(val) => updateTransactionCategory(tx.id, val, null)}
-                          >
-                            <SelectTrigger className="h-8 text-xs w-32">
-                              <SelectValue placeholder="Sin categoría" />
-                            </SelectTrigger>
-                            <SelectContent>
-                              {categories.sort((a, b) => a.name.localeCompare(b.name)).map((cat) => (
-                                <SelectItem key={cat.id} value={cat.id}>{cat.name}</SelectItem>
-                              ))}
-                            </SelectContent>
-                          </Select>
-                        </td>
-                        <td className="py-3 text-sm">
-                          {txSubcategories.length > 0 && (
-                            <Select
-                              value={tx.subcategory_id || 'none'}
-                              onValueChange={(val) => updateTransactionCategory(tx.id, tx.category_id, val === 'none' ? null : val)}
-                            >
-                              <SelectTrigger className="h-8 text-xs w-32">
-                                <SelectValue placeholder="Ninguna" />
-                              </SelectTrigger>
-                              <SelectContent>
-                                <SelectItem value="none">Ninguna</SelectItem>
-                                {txSubcategories.sort((a, b) => a.name.localeCompare(b.name)).map((sub) => (
-                                  <SelectItem key={sub.id} value={sub.id}>{sub.name}</SelectItem>
-                                ))}
-                              </SelectContent>
-                            </Select>
-                          )}
-                        </td>
-                      </tr>
-                    );
-                  })}
+                  {filteredTransactions.map((tx) => (
+                    <ExpenseRow
+                      key={tx.id}
+                      tx={tx}
+                      subcategories={subcategories}
+                      categories={categories}
+                      onUpdate={updateTransactionCategory}
+                    />
+                  ))}
                 </tbody>
               </table>
             </div>

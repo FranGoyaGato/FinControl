@@ -1,0 +1,53 @@
+{
+  "summary": "Full regression of the post-refactor personal finance app (FastAPI + React, es-ES). Backend: created pytest suite /app/backend/tests/backend_test.py (34 tests) covering health, dashboard KPIs/filters, transactions & card-transactions filters, CRUD (accounts, cards, categories, subcategories, rules), retroactive rule application (bank + card) on POST and PUT, refactored import parse-csv for .csv/.xls/.xlsx (amount parsing 1.234,56 vs Excel numeric, date normalization, auto-categorization by rules), import/confirm insert + dedup_hash duplicate skip, and inline categorization PUT endpoints. Result: 33 passed, 1 xfail (documented pre-existing regex bug). Frontend (Playwright, public preview URL): Dashboard (KPIs es-ES 1.339,71 €, Mes/Año actual toggle, month input incl. January, account filter), Income (Año+Mes filters, 'Sin categoría', search, Resumen por Categoría, export, inline category dropdown -> tx updated + automatic bank rule created), Expenses (same + expandable CategoryGroup with subcategory breakdown, subcategory filter), CreditCards (card select, 'Sin categoría', search by Concepto/Categoría, inline categorize -> tx updated + card rule created), ImportData 4-step wizard (upload .csv, preview, per-row category select proven to affect ONLY the targeted row across duplicate-concept rows => stable _rowKey confirmed, confirm inserts 3, re-import reports duplicates and DB stays at 3, wizard resets), Settings all 5 tabs + full create/edit/delete for accounts, cards, categories, subcategories, rules. Desktop + mobile drawer navigation verified. No console/page errors anywhere. Seeded DB integrity verified restored after tests (308 transactions, net_flow 1.339,71 €, no TEST_ leftovers).",
+  "backend_issues": {
+    "critical": [],
+    "minor": [
+      {"endpoint": "POST/PUT /api/rules", "issue": "`contains` is interpolated raw into MongoDB $regex without re.escape(). Concepts containing regex metacharacters (e.g. 'COMPRA *ESPECIAL* +X') silently match 0 transactions (applied_to_existing=0) and could also over-match. Verified reproducible; captured as xfail test test_rule_with_regex_metacharacters_in_concept. Fix: query['concept'] = {'$regex': re.escape(input.contains), '$options': 'i'} in both create_rule and update_rule."},
+      {"endpoint": "PUT /api/transactions/{id} & /api/card-transactions/{id}", "issue": "category_id/subcategory_id are query params and `None` means 'do not update', so a category can never be cleared back to 'Sin categoría' from the UI. Also non-RESTful (mutating fields via querystring instead of a Pydantic body)."},
+      {"endpoint": "POST /api/import/parse-csv", "issue": "_parse_csv_text does {k.strip().lower(): v.strip()} — a CSV row with fewer columns than the header yields None values and raises TypeError, surfacing as a generic 400 'Error al procesar archivo: ...'. Guard with (v or '').strip()."},
+      {"endpoint": "POST /api/import/confirm", "issue": "Per-transaction failures are only counted in `errors` and logged; the response gives no detail about which rows failed, so the UI can silently drop rows."}
+    ]
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [
+      {"flow": "Inline categorization (Income / CreditCards)", "issue": "Every inline category change POSTs a new rule with the full concept as `contains` and no duplicate check, so the rules collection grows unbounded (already 51 rules). Combined with the unescaped-regex issue above, these auto-rules can silently apply to 0 rows. Consider upsert-by-(source, contains) instead of blind create.", "affected_selectors": ["[data-testid^='income-row-']", "[data-testid^='card-tx-row-']"]}
+    ],
+    "design_issues": [
+      {"screen": "Mobile bottom navigation", "issues": ["Bottom nav shows only 5 items (General, Ingresos, Gastos, Tarjetas, Importar) — 'Config' is reachable only through the hamburger drawer; acceptable but inconsistent with the desktop sidebar."]},
+      {"screen": "Settings / Expenses", "issues": ["Contrast, spacing, alignment and footer/no-overflow all checked at 1920x1080 and 390x844 — no issues found."]}
+    ]
+  },
+  "test_report_links": [
+    "/app/backend/tests/backend_test.py",
+    "/app/backend/tests/conftest.py",
+    "/app/test_reports/pytest/pytest_results.xml"
+  ],
+  "action_items": [
+    "Apply re.escape() to `contains` in create_rule and update_rule ($regex) so retroactive application works for concepts with regex metacharacters.",
+    "Allow clearing a category (support explicit null) on PUT /api/transactions/{id} and /api/card-transactions/{id}, ideally moving to a request body.",
+    "Harden _parse_csv_text against short rows (None values) before .strip().",
+    "De-duplicate auto-created rules from inline categorization (upsert by source+contains) to stop unbounded rules growth.",
+    "Optional code-quality: /app/backend/server.py (878 lines) and /app/frontend/src/pages/Settings.js (791 lines) both exceed the 700-line guideline — split server.py into routers (accounts/cards/categories/rules/transactions/import/dashboard) and move the 5 Settings tab components into their own files."
+  ],
+  "critical_code_review_comments": [
+    "server.py: rule `contains` flows straight into a $regex — this is both a correctness bug and an injection-style risk; escape it.",
+    "server.py: create_rule and update_rule contain ~40 lines of duplicated bank/card query-building and update logic — extract a single _apply_rule_to_existing(source, contains, sign, category_id, subcategory_id) helper (DRY).",
+    "server.py: the parse_csv refactor is behaviour-preserving and verified (csv/xls/xlsx, es-ES and Excel amount formats, rule auto-categorization, ISO date normalization all identical).",
+    "frontend: ImportData preview now keys rows by _rowKey and strips it before POST — verified end-to-end that editing one of two identical-concept rows does not affect its sibling and only the edited row's category is persisted.",
+    "frontend: all useEffect dependency arrays now reference stable useCallback refs; ESLint on /app/frontend/src reports zero issues in app code (only 3 pre-existing warnings inside untouched components/ui/calendar.jsx and command.jsx). No console.error/console.log left in app code."
+  ],
+  "updated_files": [
+    "/app/backend/tests/backend_test.py",
+    "/app/backend/tests/conftest.py",
+    "/app/frontend/src/pages/Expenses.js"
+  ],
+  "success_rate": {"backend": "100% (33/33 passed, 1 xfail documenting a known pre-existing bug)", "frontend": "100% of tested flows passed"},
+  "seed_data_creation": "All test data was created via the API and deleted afterwards: TEST_ accounts, credit cards, categories, subcategories, rules, bank/card transactions and imported CSV rows (/tmp/test_import_ui.csv). Verified post-run: 308 transactions, 508 card transactions, 1 account, 1 card, 23 categories, 20 subcategories, 51 rules, dashboard net_flow 1.339,71 € — identical to the pre-test seeded state, zero TEST_ leftovers.",
+  "should_call_test_agent_after_fix": false,
+  "should_main_agent_self_test": true,
+  "test_credentials": "N/A - app has no authentication; /app/memory/test_credentials.md does not exist (not required for this app).",
+  "context_for_next_testing_agent": "Regression suite lives at /app/backend/tests/backend_test.py (+ conftest.py providing BASE_URL from /app/frontend/.env). It is self-cleaning via the module-scoped `cleanup` fixture — always register created ids there. Run: cd /app/backend/tests && python -m pytest backend_test.py -v. The refactor itself (parse_csv helpers, useCallback/useMemo deps, extracted TransactionRow/ExpenseRow/CategoryGroup/Settings tabs, ImportData _rowKey) is fully verified with no behaviour regressions. I added data-testid='category-group-{id}' / 'category-group-header-{id}' to Expenses CategoryGroup. Remaining open items are all pre-existing (not refactor-caused): unescaped $regex in rules, inability to clear a category, unbounded auto-rule creation. Note the seeded data is all in 2025; 'Año actual' on the Dashboard shows 2026 and therefore 0,00 € — that is correct behaviour, not a bug.",
+  "rca_of_the_issue": "Rules regex: create_rule/update_rule build query['concept'] = {'$regex': input.contains, '$options': 'i'} using the user/UI-supplied concept verbatim. Repro: POST /api/transactions with concept 'COMPRA *ESPECIAL* +X', then POST /api/rules with contains equal to that concept -> HTTP 200 but applied_to_existing = 0 because '*'/'+' are treated as regex quantifiers rather than literals. Mitigation: re.escape() the value before building the $regex (both endpoints). Impact is limited to retroactive application; the inline UI flow still updates same-concept transactions directly via PUT, which is why the visible UI behaviour looked correct."
+}
