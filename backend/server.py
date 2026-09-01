@@ -502,19 +502,33 @@ async def get_transactions(
     return transactions
 
 @api_router.put("/transactions/{transaction_id}", response_model=Transaction)
-async def update_transaction(transaction_id: str, category_id: Optional[str] = None, subcategory_id: Optional[str] = None):
+async def update_transaction(
+    transaction_id: str,
+    category_id: Optional[str] = None,
+    subcategory_id: Optional[str] = None,
+    clear_category: bool = False,
+    clear_subcategory: bool = False,
+):
     result = await db.transactions.find_one({"id": transaction_id}, {"_id": 0})
     if not result:
         raise HTTPException(status_code=404, detail="Transaction not found")
-    
+
     update_data = {}
-    if category_id is not None:
-        update_data['category_id'] = category_id
-    if subcategory_id is not None:
-        update_data['subcategory_id'] = subcategory_id
-    
-    await db.transactions.update_one({"id": transaction_id}, {"$set": update_data})
-    result.update(update_data)
+    if clear_category:
+        # Clearing the category cascades to subcategory
+        update_data['category_id'] = None
+        update_data['subcategory_id'] = None
+    else:
+        if category_id is not None:
+            update_data['category_id'] = category_id
+        if clear_subcategory:
+            update_data['subcategory_id'] = None
+        elif subcategory_id is not None:
+            update_data['subcategory_id'] = subcategory_id
+
+    if update_data:
+        await db.transactions.update_one({"id": transaction_id}, {"$set": update_data})
+        result.update(update_data)
     if isinstance(result.get('created_at'), str):
         result['created_at'] = datetime.fromisoformat(result['created_at'])
     return Transaction(**result)
@@ -563,19 +577,32 @@ async def get_card_transactions(
     return transactions
 
 @api_router.put("/card-transactions/{transaction_id}", response_model=CardTransaction)
-async def update_card_transaction(transaction_id: str, category_id: Optional[str] = None, subcategory_id: Optional[str] = None):
+async def update_card_transaction(
+    transaction_id: str,
+    category_id: Optional[str] = None,
+    subcategory_id: Optional[str] = None,
+    clear_category: bool = False,
+    clear_subcategory: bool = False,
+):
     result = await db.card_transactions.find_one({"id": transaction_id}, {"_id": 0})
     if not result:
         raise HTTPException(status_code=404, detail="Transaction not found")
-    
+
     update_data = {}
-    if category_id is not None:
-        update_data['category_id'] = category_id
-    if subcategory_id is not None:
-        update_data['subcategory_id'] = subcategory_id
-    
-    await db.card_transactions.update_one({"id": transaction_id}, {"$set": update_data})
-    result.update(update_data)
+    if clear_category:
+        update_data['category_id'] = None
+        update_data['subcategory_id'] = None
+    else:
+        if category_id is not None:
+            update_data['category_id'] = category_id
+        if clear_subcategory:
+            update_data['subcategory_id'] = None
+        elif subcategory_id is not None:
+            update_data['subcategory_id'] = subcategory_id
+
+    if update_data:
+        await db.card_transactions.update_one({"id": transaction_id}, {"$set": update_data})
+        result.update(update_data)
     if isinstance(result.get('created_at'), str):
         result['created_at'] = datetime.fromisoformat(result['created_at'])
     return CardTransaction(**result)

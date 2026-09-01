@@ -4,7 +4,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { toast } from 'sonner';
-import { TrendingDown, Search, Download, ChevronDown, ChevronRight } from 'lucide-react';
+import { TrendingDown, Search, Download, ChevronDown, ChevronRight, X } from 'lucide-react';
 import * as XLSX from 'xlsx';
 import { formatCurrencyEUR, buildMonthRangeParams } from '../utils/format';
 
@@ -12,7 +12,7 @@ const API = `${process.env.REACT_APP_BACKEND_URL}/api`;
 
 const formatExpense = (value) => formatCurrencyEUR(Math.abs(value));
 
-function ExpenseRow({ tx, subcategories, categories, onUpdate }) {
+function ExpenseRow({ tx, subcategories, categories, onUpdate, onClear }) {
   const txSubcategories = useMemo(
     () => subcategories.filter((s) => s.category_id === tx.category_id),
     [subcategories, tx.category_id]
@@ -32,16 +32,30 @@ function ExpenseRow({ tx, subcategories, categories, onUpdate }) {
       <td className="py-3 text-sm max-w-[200px] truncate">{tx.concept}</td>
       <td className="py-3 text-sm font-semibold text-red-700">{formatExpense(tx.amount)}</td>
       <td className="py-3 text-sm">
-        <Select value={tx.category_id || ''} onValueChange={(val) => onUpdate(tx.id, val, null)}>
-          <SelectTrigger className="h-8 text-xs w-32">
-            <SelectValue placeholder="Sin categoría" />
-          </SelectTrigger>
-          <SelectContent>
-            {sortedCategories.map((cat) => (
-              <SelectItem key={cat.id} value={cat.id}>{cat.name}</SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
+        <div className="flex items-center gap-1">
+          <Select value={tx.category_id || ''} onValueChange={(val) => onUpdate(tx.id, val, null)}>
+            <SelectTrigger className="h-8 text-xs w-32">
+              <SelectValue placeholder="Sin categoría" />
+            </SelectTrigger>
+            <SelectContent>
+              {sortedCategories.map((cat) => (
+                <SelectItem key={cat.id} value={cat.id}>{cat.name}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          {tx.category_id && (
+            <button
+              type="button"
+              onClick={() => onClear(tx.id)}
+              aria-label="Quitar categoría"
+              title="Quitar categoría"
+              data-testid={`clear-category-${tx.id}`}
+              className="p-1 rounded hover:bg-red-50 text-gray-400 hover:text-red-500 transition-colors"
+            >
+              <X className="w-3 h-3" />
+            </button>
+          )}
+        </div>
       </td>
       <td className="py-3 text-sm">
         {txSubcategories.length > 0 && (
@@ -203,6 +217,18 @@ export default function Expenses() {
       loadTransactions();
     } catch (error) {
       toast.error('Error al actualizar categoría');
+    }
+  };
+
+  const clearTransactionCategory = async (txId) => {
+    try {
+      await axios.put(`${API}/transactions/${txId}`, null, {
+        params: { clear_category: true },
+      });
+      toast.success('Categoría eliminada');
+      loadTransactions();
+    } catch (error) {
+      toast.error('Error al quitar categoría');
     }
   };
 
@@ -453,6 +479,7 @@ export default function Expenses() {
                       subcategories={subcategories}
                       categories={categories}
                       onUpdate={updateTransactionCategory}
+                      onClear={clearTransactionCategory}
                     />
                   ))}
                 </tbody>
