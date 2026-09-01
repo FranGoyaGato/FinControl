@@ -330,12 +330,38 @@ async def delete_subcategory(subcategory_id: str):
 # --- RULES ---
 @api_router.post("/rules")
 async def create_rule(input: RuleCreate):
-    rule = Rule(**input.model_dump())
-    await db.rules.insert_one(rule.model_dump())
-    
-    # Apply rule to existing transactions
+    # Upsert by (source, contains, sign) — an inline categorization click for the
+    # same concept must not create a duplicate rule; instead update the existing one.
+    existing = await db.rules.find_one(
+        {"source": input.source, "contains": input.contains, "sign": input.sign},
+        {"_id": 0},
+    )
+
+    if existing:
+        await db.rules.update_one(
+            {"id": existing["id"]},
+            {"$set": {
+                "category_id": input.category_id,
+                "subcategory_id": input.subcategory_id,
+                "priority": input.priority,
+                "active": input.active,
+            }},
+        )
+        rule_doc = {**existing,
+                    "category_id": input.category_id,
+                    "subcategory_id": input.subcategory_id,
+                    "priority": input.priority,
+                    "active": input.active}
+        created = False
+    else:
+        rule = Rule(**input.model_dump())
+        await db.rules.insert_one(rule.model_dump())
+        rule_doc = rule.model_dump()
+        created = True
+
+    # Apply rule to existing transactions (same logic for both create and update paths)
     updated_count = 0
-    
+
     if input.source == 'bank':
         # Find matching transactions
         query = {}
@@ -381,11 +407,13 @@ async def create_rule(input: RuleCreate):
             }}
         )
         updated_count = result.modified_count
-    
+
+    action = 'creada' if created else 'actualizada'
     return {
-        'rule': rule.model_dump(),
+        'rule': rule_doc,
         'applied_to_existing': updated_count,
-        'message': f'Regla creada y aplicada a {updated_count} movimiento(s) existente(s)'
+        'created': created,
+        'message': f'Regla {action} y aplicada a {updated_count} movimiento(s) existente(s)'
     }
 
 @api_router.get("/rules", response_model=List[Rule])

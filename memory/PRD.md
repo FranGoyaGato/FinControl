@@ -18,7 +18,8 @@ Personal finance web application for a single user (Spanish, es-ES locale).
   - `/app/frontend/src/pages/` — Dashboard, Income, Expenses, CreditCards, ImportData, Settings
 
 ## Implemented (Changelog)
-- 2026-02: **Clear Category** — added `clear_category` / `clear_subcategory` query params to `PUT /api/transactions/{id}` and `PUT /api/card-transactions/{id}`. Clearing the category cascades to clear subcategory. UI: a small **X** button (lucide-react) appears next to the inline category `Select` on the Income, Expenses and Credit Cards rows whenever a category is set — pressing it clears both category and subcategory for that single transaction and reloads. Verified via curl.
+- 2026-02: **Rules Dedupe (upsert)** — `POST /api/rules` now upserts by `(source, contains, sign)`. Second call with same key updates category/subcategory/priority/active on the same rule id instead of inserting a duplicate. Response now includes `created: bool` and a "creada"/"actualizada" message. One pre-existing duplicate was cleaned from Mongo (Mapfre rule); the rules collection dropped from 51 → 50. Verified: two POSTs with same `(bank, "TEST_XYZ", "-")` but different `category_id` returned the same rule id, count went up by 1 only, and the final category matches the second call.
+- 2026-02: **Clear Category** — `PUT /api/(card-)transactions/{id}` accept `clear_category`/`clear_subcategory`. UI **X** button next to inline category `Select` in Income, Expenses, Credit Cards.
 - 2026-02: `re.escape()` applied to `contains` in `POST/PUT /api/rules` — rules with regex metacharacters (`*`, `+`, `(`, `)`, etc.) now apply retroactively. Verified via curl: rule with concept `"COMPRA *ESPECIAL* +XYZ"` → `applied_to_existing=1`.
 - 2026-02: Code-quality refactor
   - All `useEffect` deps fixed with `useCallback` (Dashboard, Income, Expenses, CreditCards, ImportData, Settings, use-toast)
@@ -31,8 +32,7 @@ Personal finance web application for a single user (Spanish, es-ES locale).
 
 ## Backlog / Known Issues (P1, pre-existing — not refactor-caused)
 1. `_parse_csv_text` can raise TypeError on rows shorter than the header (None values). Guard with `(v or '').strip()`.
-2. Inline categorization creates a new rule per click without dedup — rules collection has grown unbounded (currently 51). Upsert by `(source, contains)`.
-3. Optional splits: `server.py` (~880 lines) → per-domain routers. `Settings.js` (~800 lines) → move 5 tab components into own files.
+2. Optional splits: `server.py` (~900 lines) → per-domain routers. `Settings.js` (~800 lines) → move 5 tab components into own files.
 
 ## Backlog / Ideas (P2)
 - Monthly budgets / savings goals with progress bars
