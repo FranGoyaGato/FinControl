@@ -1,6 +1,12 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import axios from 'axios';
-import { TrendingUp, TrendingDown, DollarSign, Calendar } from 'lucide-react';
+import { TrendingUp, TrendingDown, DollarSign, Calendar, PieChart as PieIcon, LineChart as LineIcon } from 'lucide-react';
+import {
+  ResponsiveContainer,
+  PieChart, Pie, Cell,
+  LineChart, Line,
+  XAxis, YAxis, CartesianGrid, Tooltip, Legend,
+} from 'recharts';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Button } from '@/components/ui/button';
@@ -8,6 +14,13 @@ import { toast } from 'sonner';
 import { formatCurrencyEUR } from '../utils/format';
 
 const API = `${process.env.REACT_APP_BACKEND_URL}/api`;
+
+const DONUT_COLORS = [
+  '#6366f1', '#ec4899', '#f59e0b', '#10b981', '#3b82f6',
+  '#8b5cf6', '#ef4444', '#14b8a6', '#f97316', '#a855f7',
+  '#22c55e', '#0ea5e9', '#eab308', '#d946ef', '#84cc16',
+  '#f43f5e', '#06b6d4', '#facc15', '#7c3aed', '#e11d48',
+];
 
 function KPICard({ title, value, subtitle, icon: Icon, colorClass }) {
   return (
@@ -24,17 +37,41 @@ function KPICard({ title, value, subtitle, icon: Icon, colorClass }) {
   );
 }
 
+function DonutTooltip({ active, payload }) {
+  if (!active || !payload || !payload.length) return null;
+  const p = payload[0];
+  return (
+    <div className="bg-white border border-gray-200 rounded-lg px-3 py-2 shadow-sm text-sm">
+      <div className="font-medium text-gray-800">{p.name}</div>
+      <div className="text-red-700 font-semibold">{formatCurrencyEUR(p.value)}</div>
+    </div>
+  );
+}
+
+function LineTooltip({ active, payload, label }) {
+  if (!active || !payload || !payload.length) return null;
+  return (
+    <div className="bg-white border border-gray-200 rounded-lg px-3 py-2 shadow-sm text-sm">
+      <div className="font-medium text-gray-800 mb-1">{label}</div>
+      {payload.map((p) => (
+        <div key={p.dataKey} className="flex items-center gap-2">
+          <span className="w-2 h-2 rounded-full" style={{ background: p.color }} />
+          <span className="text-gray-600">{p.name}:</span>
+          <span className="font-semibold" style={{ color: p.color }}>{formatCurrencyEUR(p.value)}</span>
+        </div>
+      ))}
+    </div>
+  );
+}
+
 export default function Dashboard() {
   const [accounts, setAccounts] = useState([]);
   const [selectedAccount, setSelectedAccount] = useState('all');
   const [selectedMonth, setSelectedMonth] = useState(new Date().toISOString().slice(0, 7));
   const [viewType, setViewType] = useState('month'); // 'month' or 'year'
-  const [kpis, setKpis] = useState({
-    total_income: 0,
-    total_expense: 0,
-    net_flow: 0,
-    transaction_count: 0
-  });
+  const [kpis, setKpis] = useState({ total_income: 0, total_expense: 0, net_flow: 0, transaction_count: 0 });
+  const [donutData, setDonutData] = useState([]);
+  const [monthly, setMonthly] = useState([]);
   const [loading, setLoading] = useState(true);
 
   const loadAccounts = useCallback(async () => {
@@ -46,43 +83,52 @@ export default function Dashboard() {
     }
   }, []);
 
+  const { periodParams, chartYear } = useMemo(() => {
+    const p = {};
+    if (selectedAccount !== 'all') p.account_id = selectedAccount;
+    let year;
+    if (viewType === 'year') {
+      year = new Date().getFullYear();
+      const today = new Date().toISOString().split('T')[0];
+      p.date_from = `${year}-01-01`;
+      p.date_to = today;
+    } else if (selectedMonth) {
+      const [y, m] = selectedMonth.split('-');
+      year = parseInt(y, 10);
+      p.date_from = `${y}-${m}-01`;
+      const lastDay = new Date(parseInt(y, 10), parseInt(m, 10), 0).getDate();
+      p.date_to = `${y}-${m}-${String(lastDay).padStart(2, '0')}`;
+    } else {
+      year = new Date().getFullYear();
+    }
+    return { periodParams: p, chartYear: year };
+  }, [selectedAccount, selectedMonth, viewType]);
+
   const loadDashboardData = useCallback(async () => {
     try {
       setLoading(true);
-      const params = {};
-
-      if (selectedAccount !== 'all') {
-        params.account_id = selectedAccount;
-      }
-
-      if (viewType === 'year') {
-        const currentYear = new Date().getFullYear();
-        const today = new Date().toISOString().split('T')[0];
-        params.date_from = `${currentYear}-01-01`;
-        params.date_to = today;
-      } else if (selectedMonth) {
-        const [year, month] = selectedMonth.split('-');
-        params.date_from = `${year}-${month}-01`;
-        const lastDay = new Date(parseInt(year, 10), parseInt(month, 10), 0).getDate();
-        params.date_to = `${year}-${month}-${String(lastDay).padStart(2, '0')}`;
-      }
-
-      const response = await axios.get(`${API}/dashboard`, { params });
-      setKpis(response.data);
+      const [kpiRes, donutRes, monthlyRes] = await Promise.all([
+        axios.get(`${API}/dashboard`, { params: periodParams }),
+        axios.get(`${API}/dashboard/expense-by-category`, { params: periodParams }),
+        axios.get(`${API}/dashboard/monthly-summary`, {
+          params: {
+            year: chartYear,
+            ...(selectedAccount !== 'all' ? { account_id: selectedAccount } : {}),
+          },
+        }),
+      ]);
+      setKpis(kpiRes.data);
+      setDonutData(donutRes.data);
+      setMonthly(monthlyRes.data);
     } catch (error) {
       toast.error('Error al cargar el dashboard');
     } finally {
       setLoading(false);
     }
-  }, [selectedAccount, selectedMonth, viewType]);
+  }, [periodParams, chartYear, selectedAccount]);
 
-  useEffect(() => {
-    loadAccounts();
-  }, [loadAccounts]);
-
-  useEffect(() => {
-    loadDashboardData();
-  }, [loadDashboardData]);
+  useEffect(() => { loadAccounts(); }, [loadAccounts]);
+  useEffect(() => { loadDashboardData(); }, [loadDashboardData]);
 
   const isYearView = viewType === 'year';
 
@@ -95,6 +141,16 @@ export default function Dashboard() {
     const label = date.toLocaleDateString('es-ES', { month: 'long', year: 'numeric' });
     return label.charAt(0).toUpperCase() + label.slice(1);
   };
+
+  const donutTotal = useMemo(
+    () => donutData.reduce((sum, d) => sum + d.total, 0),
+    [donutData]
+  );
+
+  const donutForChart = useMemo(
+    () => donutData.map((d) => ({ name: d.name, value: d.total })),
+    [donutData]
+  );
 
   return (
     <div className="space-y-6">
@@ -165,27 +221,114 @@ export default function Dashboard() {
           <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-600"></div>
         </div>
       ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-          <KPICard
-            title={isYearView ? "Ingresos del Año" : "Ingresos del Mes"}
-            value={formatCurrencyEUR(kpis.total_income)}
-            icon={TrendingUp}
-            colorClass="text-green-600"
-          />
-          <KPICard
-            title={isYearView ? "Gastos del Año" : "Gastos del Mes"}
-            value={formatCurrencyEUR(kpis.total_expense)}
-            icon={TrendingDown}
-            colorClass="text-red-600"
-          />
-          <KPICard
-            title="Flujo Neto"
-            value={formatCurrencyEUR(kpis.net_flow)}
-            subtitle={kpis.net_flow >= 0 ? 'Balance positivo' : 'Balance negativo'}
-            icon={DollarSign}
-            colorClass={kpis.net_flow >= 0 ? 'text-green-600' : 'text-red-600'}
-          />
-        </div>
+        <>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            <KPICard
+              title={isYearView ? "Ingresos del Año" : "Ingresos del Mes"}
+              value={formatCurrencyEUR(kpis.total_income)}
+              icon={TrendingUp}
+              colorClass="text-green-600"
+            />
+            <KPICard
+              title={isYearView ? "Gastos del Año" : "Gastos del Mes"}
+              value={formatCurrencyEUR(kpis.total_expense)}
+              icon={TrendingDown}
+              colorClass="text-red-600"
+            />
+            <KPICard
+              title="Flujo Neto"
+              value={formatCurrencyEUR(kpis.net_flow)}
+              subtitle={kpis.net_flow >= 0 ? 'Balance positivo' : 'Balance negativo'}
+              icon={DollarSign}
+              colorClass={kpis.net_flow >= 0 ? 'text-green-600' : 'text-red-600'}
+            />
+          </div>
+
+          {/* Charts */}
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+            {/* Donut: expenses by category */}
+            <Card data-testid="donut-card" className="border border-gray-200">
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2 text-base">
+                  <PieIcon className="w-4 h-4 text-indigo-600" />
+                  Gastos por categoría — {getPeriodLabel()}
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                {donutForChart.length === 0 ? (
+                  <div className="text-center text-sm text-gray-500 py-16">Sin gastos en este periodo</div>
+                ) : (
+                  <div className="flex flex-col md:flex-row items-center gap-4">
+                    <div className="w-full md:w-1/2 h-64">
+                      <ResponsiveContainer width="100%" height="100%">
+                        <PieChart>
+                          <Pie
+                            data={donutForChart}
+                            dataKey="value"
+                            nameKey="name"
+                            innerRadius={55}
+                            outerRadius={90}
+                            paddingAngle={2}
+                            stroke="#ffffff"
+                            strokeWidth={2}
+                          >
+                            {donutForChart.map((entry, index) => (
+                              <Cell key={entry.name} fill={DONUT_COLORS[index % DONUT_COLORS.length]} />
+                            ))}
+                          </Pie>
+                          <Tooltip content={<DonutTooltip />} />
+                        </PieChart>
+                      </ResponsiveContainer>
+                    </div>
+                    <div className="w-full md:w-1/2 space-y-1 max-h-64 overflow-y-auto pr-2">
+                      {donutData.map((d, idx) => {
+                        const pct = donutTotal ? (d.total / donutTotal) * 100 : 0;
+                        return (
+                          <div key={d.category_id || 'uncat'} data-testid={`donut-legend-${d.category_id || 'uncategorized'}`} className="flex items-center justify-between text-xs py-1">
+                            <div className="flex items-center gap-2 min-w-0">
+                              <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ background: DONUT_COLORS[idx % DONUT_COLORS.length] }} />
+                              <span className="truncate text-gray-700">{d.name}</span>
+                            </div>
+                            <div className="text-right shrink-0 ml-2">
+                              <div className="font-semibold text-gray-800">{formatCurrencyEUR(d.total)}</div>
+                              <div className="text-gray-400">{pct.toFixed(1)}%</div>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+
+            {/* Line: monthly net flow */}
+            <Card data-testid="monthly-line-card" className="border border-gray-200">
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2 text-base">
+                  <LineIcon className="w-4 h-4 text-indigo-600" />
+                  Flujo mensual — {chartYear}
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="w-full h-64">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <LineChart data={monthly} margin={{ top: 10, right: 12, left: -8, bottom: 0 }}>
+                      <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
+                      <XAxis dataKey="label" stroke="#94a3b8" tick={{ fontSize: 11 }} />
+                      <YAxis stroke="#94a3b8" tick={{ fontSize: 11 }} tickFormatter={(v) => `${Math.round(v / 1000)}k`} />
+                      <Tooltip content={<LineTooltip />} />
+                      <Legend wrapperStyle={{ fontSize: 12 }} />
+                      <Line type="monotone" dataKey="income" name="Ingresos" stroke="#10b981" strokeWidth={2} dot={{ r: 3 }} activeDot={{ r: 5 }} />
+                      <Line type="monotone" dataKey="expense" name="Gastos" stroke="#ef4444" strokeWidth={2} dot={{ r: 3 }} activeDot={{ r: 5 }} />
+                      <Line type="monotone" dataKey="net_flow" name="Flujo neto" stroke="#6366f1" strokeWidth={2.5} dot={{ r: 3 }} activeDot={{ r: 5 }} />
+                    </LineChart>
+                  </ResponsiveContainer>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+        </>
       )}
 
       {/* Info Card */}

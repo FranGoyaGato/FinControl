@@ -886,6 +886,89 @@ async def get_dashboard(
     }
 
 
+@api_router.get("/dashboard/expense-by-category")
+async def get_expense_by_category(
+    date_from: Optional[str] = None,
+    date_to: Optional[str] = None,
+    account_id: Optional[str] = None,
+):
+    """Aggregate expenses per category (bank + card) for donut chart."""
+    query = {'type': 'expense'}
+    if account_id:
+        query['account_id'] = account_id
+    if date_from:
+        query.setdefault('date', {})['$gte'] = date_from
+    if date_to:
+        query.setdefault('date', {})['$lte'] = date_to
+
+    txs = await db.transactions.find(query, {"_id": 0}).to_list(50000)
+
+    card_query = {}
+    if date_from:
+        card_query.setdefault('date', {})['$gte'] = date_from
+    if date_to:
+        card_query.setdefault('date', {})['$lte'] = date_to
+    # Card expenses are the negative-amount card_transactions
+    card_query['amount'] = {'$lt': 0}
+    card_txs = await db.card_transactions.find(card_query, {"_id": 0}).to_list(50000)
+
+    totals: Dict[str, float] = {}
+    for tx in txs + card_txs:
+        key = tx.get('category_id') or '__uncategorized__'
+        totals[key] = totals.get(key, 0.0) + abs(tx['amount'])
+
+    categories = await db.categories.find({}, {"_id": 0}).to_list(1000)
+    name_by_id = {c['id']: c['name'] for c in categories}
+
+    result = [
+        {
+            'category_id': None if cat_id == '__uncategorized__' else cat_id,
+            'name': 'Sin categoría' if cat_id == '__uncategorized__' else name_by_id.get(cat_id, 'Sin categoría'),
+            'total': round(total, 2),
+        }
+        for cat_id, total in totals.items()
+    ]
+    result.sort(key=lambda r: r['total'], reverse=True)
+    return result
+
+
+@api_router.get("/dashboard/monthly-summary")
+async def get_monthly_summary(
+    year: int,
+    account_id: Optional[str] = None,
+):
+    """Return 12 monthly buckets with income, expense and net_flow for the given year."""
+    query = {}
+    if account_id:
+        query['account_id'] = account_id
+    query['date'] = {'$gte': f'{year}-01-01', '$lte': f'{year}-12-31'}
+
+    txs = await db.transactions.find(query, {"_id": 0}).to_list(100000)
+
+    buckets = [{'month': m, 'income': 0.0, 'expense': 0.0, 'net_flow': 0.0} for m in range(1, 13)]
+    for tx in txs:
+        try:
+            month = int(tx['date'].split('-')[1])
+        except (ValueError, IndexError, KeyError):
+            continue
+        if not 1 <= month <= 12:
+            continue
+        b = buckets[month - 1]
+        if tx.get('type') == 'income':
+            b['income'] += tx['amount']
+        elif tx.get('type') == 'expense':
+            b['expense'] += abs(tx['amount'])
+
+    month_labels = ['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun', 'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic']
+    for b in buckets:
+        b['income'] = round(b['income'], 2)
+        b['expense'] = round(b['expense'], 2)
+        b['net_flow'] = round(b['income'] - b['expense'], 2)
+        b['label'] = month_labels[b['month'] - 1]
+
+    return buckets
+
+
 # --- SETTINGS ---
 @api_router.get("/settings", response_model=Settings)
 async def get_settings():
