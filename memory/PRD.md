@@ -18,7 +18,7 @@ Personal finance web application for a single user (Spanish, es-ES locale).
   - `/app/frontend/src/pages/` — Dashboard, Income, Expenses, CreditCards, ImportData, Settings
 
 ## Implemented (Changelog)
-- 2026-02: **Autenticación Email + Password (JWT)** — usuario único semillado idempotentemente en startup (`fgoya@laboratoriogoya.com`). Todos los `/api/*` protegidos con `Depends(get_current_user)`; router público `/api/auth/{login,me,logout,change-password}`. Frontend: `AuthContext`, `ProtectedRoute`, `/login`, axios interceptor con auto-logout en 401, botón "Cerrar sesión" en sidebar y drawer, pestaña "Seguridad" en Configuración para rotar contraseña. Verificado 83/83 backend + todos los flujos UI (login/logout/rotación/persistencia/interceptor).
+- 2026-02: **Autenticación Email + Password (JWT)** — usuario único semillado idempotentemente en startup a partir de `ADMIN_EMAIL` / `ADMIN_PASSWORD` en `/app/backend/.env` (no aparecen en código fuente). Todos los `/api/*` protegidos con `Depends(get_current_user)`; router público `/api/auth/{login,me,logout,change-password}`. Frontend: `AuthContext`, `ProtectedRoute`, `/login`, axios interceptor con auto-logout en 401, botón "Cerrar sesión" en sidebar y drawer, pestaña "Seguridad" en Configuración para rotar contraseña. Verificado 83/83 backend + todos los flujos UI (login/logout/rotación/persistencia/interceptor).
 - 2026-02: **Gráficos Financieros** en el Dashboard (donut + línea)
 - 2026-02: **Rules Dedupe (upsert)** — `POST /api/rules` upserts by `(source, contains, sign)`.
 - 2026-02: **Clear Category** — `PUT /api/(card-)transactions/{id}` accept `clear_category`/`clear_subcategory`. UI **X** button next to inline category `Select` in Income, Expenses, Credit Cards.
