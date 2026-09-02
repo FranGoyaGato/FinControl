@@ -22,7 +22,7 @@ const DONUT_COLORS = [
   '#f43f5e', '#06b6d4', '#facc15', '#7c3aed', '#e11d48',
 ];
 
-function KPICard({ title, value, subtitle, icon: Icon, colorClass }) {
+function KPICard({ title, value, subtitle, icon: Icon, colorClass, valueColorClass }) {
   return (
     <Card data-testid={`kpi-${title.toLowerCase().replace(/\s+/g, '-')}`} className="border border-gray-200 shadow-sm">
       <CardHeader className="flex flex-row items-center justify-between pb-2">
@@ -30,7 +30,7 @@ function KPICard({ title, value, subtitle, icon: Icon, colorClass }) {
         <Icon className={`w-5 h-5 ${colorClass}`} />
       </CardHeader>
       <CardContent>
-        <div className="text-2xl font-bold" style={{ fontFamily: 'Space Grotesk, sans-serif' }}>{value}</div>
+        <div className={`text-2xl font-bold ${valueColorClass || ''}`} style={{ fontFamily: 'Space Grotesk, sans-serif' }}>{value}</div>
         {subtitle && <p className="text-xs text-gray-500 mt-1">{subtitle}</p>}
       </CardContent>
     </Card>
@@ -92,6 +92,10 @@ export default function Dashboard() {
       const today = new Date().toISOString().split('T')[0];
       p.date_from = `${year}-01-01`;
       p.date_to = today;
+    } else if (viewType === 'previous_year') {
+      year = new Date().getFullYear() - 1;
+      p.date_from = `${year}-01-01`;
+      p.date_to = `${year}-12-31`;
     } else if (selectedMonth) {
       const [y, m] = selectedMonth.split('-');
       year = parseInt(y, 10);
@@ -130,12 +134,15 @@ export default function Dashboard() {
   useEffect(() => { loadAccounts(); }, [loadAccounts]);
   useEffect(() => { loadDashboardData(); }, [loadDashboardData]);
 
-  const isYearView = viewType === 'year';
+  const isYearView = viewType === 'year' || viewType === 'previous_year';
 
   const getPeriodLabel = () => {
-    if (isYearView) {
+    if (viewType === 'year') {
       const currentYear = new Date().getFullYear();
       return `Año ${currentYear} (hasta hoy)`;
+    }
+    if (viewType === 'previous_year') {
+      return `Año ${new Date().getFullYear() - 1}`;
     }
     const date = new Date(selectedMonth + '-01');
     const label = date.toLocaleDateString('es-ES', { month: 'long', year: 'numeric' });
@@ -199,6 +206,15 @@ export default function Dashboard() {
                   >
                     Año actual
                   </Button>
+                  <Button
+                    type="button"
+                    variant={viewType === 'previous_year' ? 'default' : 'outline'}
+                    onClick={() => setViewType('previous_year')}
+                    className="flex-1"
+                    data-testid="view-previous-year-btn"
+                  >
+                    Año anterior
+                  </Button>
                 </div>
                 {viewType === 'month' && (
                   <input
@@ -227,20 +243,23 @@ export default function Dashboard() {
               title={isYearView ? "Ingresos del Año" : "Ingresos del Mes"}
               value={formatCurrencyEUR(kpis.total_income)}
               icon={TrendingUp}
-              colorClass="text-green-600"
+              colorClass="text-blue-600"
+              valueColorClass="text-blue-700"
             />
             <KPICard
               title={isYearView ? "Gastos del Año" : "Gastos del Mes"}
               value={formatCurrencyEUR(kpis.total_expense)}
               icon={TrendingDown}
               colorClass="text-red-600"
+              valueColorClass="text-red-700"
             />
             <KPICard
               title="Flujo Neto"
               value={formatCurrencyEUR(kpis.net_flow)}
               subtitle={kpis.net_flow >= 0 ? 'Balance positivo' : 'Balance negativo'}
               icon={DollarSign}
-              colorClass={kpis.net_flow >= 0 ? 'text-green-600' : 'text-red-600'}
+              colorClass={kpis.net_flow >= 0 ? 'text-blue-600' : 'text-red-600'}
+              valueColorClass={kpis.net_flow >= 0 ? 'text-blue-700' : 'text-red-700'}
             />
           </div>
 
