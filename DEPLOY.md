@@ -14,6 +14,7 @@ Dockerfile.frontend        # React build → Nginx alpine
 frontend/nginx.conf        # SPA fallback + proxy interno /api → backend
 docker-compose.yml         # backend + frontend en red goya_net
 .env.example               # plantilla → se copia como .env.production en el VPS
+infra/fran.caddy           # snippet a copiar en /opt/infra/sites-enabled/
 scripts/deploy.sh          # deploy con health-check + rollback automático
 scripts/backup.sh          # mongodump diario del shared goya-mongo
 .github/workflows/deploy.yml   # dispara scripts/deploy.sh por SSH
@@ -25,25 +26,22 @@ scripts/backup.sh          # mongodump diario del shared goya-mongo
 ## 1. Cloudflare (una sola vez)
 
 1. En `dash.cloudflare.com` → DNS de `goyainnova.com` → añade un registro **A**:
-   - Name: `fran` · Value: IP pública del VPS · Proxy: **naranja (proxied)**
-2. `SSL/TLS → Overview` → **Full (strict)**
-3. Reutiliza el **Origin Certificate wildcard `*.goyainnova.com`** que ya usas en las otras apps. Si no lo tuvieras, créalo en `SSL/TLS → Origin Server → Create Certificate` (15 años). Los archivos ya deberían estar en el VPS en `/etc/caddy/certs/goyainnova.com.pem` y `.key` (o donde tengas montados los certs del contenedor `goya-caddy`).
+   - Name: `fran` · Value: IP pública del VPS · **Proxy: gris (DNS-only)** durante el primer arranque para que Caddy pueda pedir el certificado por HTTP-01.
+2. `SSL/TLS → Overview` → **Full (strict)**.
+3. Cuando en el paso 4 veas en `docker logs goya-caddy` la línea `certificate obtained ...`, vuelve al panel DNS y activa el proxy (nube naranja). Cloudflare seguirá funcionando en Full (strict) porque el cert de Let's Encrypt es válido.
+
+> Nota: tu Caddy global (`/opt/infra/Caddyfile`) ya está configurado con `email {$ADMIN_EMAIL}` + `import /etc/caddy/sites-enabled/*.caddy`, así que la emisión del certificado es 100 % automática. **No necesitas Origin cert ni tocar el Caddyfile global.**
 
 ---
 
-## 2. Añadir el bloque al Caddyfile de `/opt/infra`
+## 2. Añadir el snippet en `sites-enabled/`
 
-Edita el Caddyfile compartido que ya usas para las otras apps:
+Tu Caddy global usa el patrón "un fichero por app" (`import /etc/caddy/sites-enabled/*.caddy`). Solo tienes que **crear un fichero nuevo** — el Caddyfile global se queda como está.
 
-```bash
-nano /opt/infra/Caddyfile
-```
-
-Añade al final:
+El repo ya trae la plantilla en `infra/fran.caddy`:
 
 ```caddyfile
 fran.goyainnova.com {
-    tls /etc/caddy/certs/goyainnova.com.pem /etc/caddy/certs/goyainnova.com.key
     encode zstd gzip
 
     @api path /api/*
@@ -52,19 +50,29 @@ fran.goyainnova.com {
 }
 ```
 
-> Las rutas de los certs deben coincidir con las que ya montas en el servicio `caddy` de `/opt/infra/docker-compose.yml`. Si en tu convención los tienes en otra ruta, ajusta.
+Cópiala al directorio real de snippets de tu VPS (elige la ruta según cómo tengas montado el volumen de `goya-caddy`):
 
-Recarga Caddy sin reiniciar el resto:
+```bash
+# Si el volumen del contenedor apunta a /opt/infra/sites-enabled:
+cp /opt/fincontrol/infra/fran.caddy /opt/infra/sites-enabled/fran.caddy
+
+# O si lo tienes bajo /etc/caddy/ del host:
+# cp /opt/fincontrol/infra/fran.caddy /etc/caddy/sites-enabled/fran.caddy
+```
+
+Recarga Caddy sin reiniciar el resto del stack:
 
 ```bash
 docker exec goya-caddy caddy reload --config /etc/caddy/Caddyfile
 ```
 
-Verifica que no hay errores:
+Comprueba que no hay errores y que emite el certificado (esto puede tardar 15-30 s):
 
 ```bash
-docker logs --tail 40 goya-caddy
+docker logs --tail 60 goya-caddy | grep -E "certificate obtained|error"
 ```
+
+Cuando aparezca `certificate obtained "fran.goyainnova.com"`, vuelve a Cloudflare y activa el proxy naranja.
 
 ---
 
@@ -270,9 +278,10 @@ Opcional: replica offsite a Cloudflare R2 tal y como haces con `eCRD` (`rclone` 
 
 ## Checklist final
 
-- [ ] DNS `fran.goyainnova.com` → IP VPS (Cloudflare proxied)
-- [ ] Bloque `fran.goyainnova.com` en `/opt/infra/Caddyfile` y `caddy reload` OK
-- [ ] Certificado Origin `*.goyainnova.com` accesible desde `goya-caddy`
+- [ ] DNS `fran.goyainnova.com` → IP VPS (Cloudflare **gris** durante primer arranque, después naranja)
+- [ ] `/opt/infra/sites-enabled/fran.caddy` creado (copia de `infra/fran.caddy`) y `caddy reload` OK
+- [ ] Log `certificate obtained "fran.goyainnova.com"` visible en `docker logs goya-caddy`
+- [ ] Cloudflare pasado a proxy naranja tras emisión del cert
 - [ ] `docker network ls` confirma nombre real de la red compartida (ajustado en `docker-compose.yml` si hace falta)
 - [ ] `/opt/fincontrol/.env.production` creado, `chmod 600`, con `MONGO_URL`, `JWT_SECRET` (openssl), `ADMIN_*`
 - [ ] `bash scripts/deploy.sh` primer despliegue OK, `docker compose ps` muestra `fincontrol-backend` y `fincontrol-frontend` **Up**

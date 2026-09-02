@@ -1,0 +1,31 @@
+# FinControl — Caddy site snippet.
+#
+# Copy this file to your central Caddy's sites-enabled directory on the VPS,
+# usually one of:
+#   /opt/infra/sites-enabled/fran.caddy    (host-mounted into goya-caddy)
+#   /etc/caddy/sites-enabled/fran.caddy    (inside the container)
+#
+# Then reload Caddy without restarting anything else:
+#   docker exec goya-caddy caddy reload --config /etc/caddy/Caddyfile
+#
+# TLS is obtained automatically by Caddy via Let's Encrypt (the global
+# Caddyfile already sets `email {$ADMIN_EMAIL}`). During the very first
+# issuance the domain must resolve to the VPS and Cloudflare must be in
+# DNS-only mode (grey cloud). After Caddy logs "certificate obtained" you
+# can flip Cloudflare back to proxied (orange).
+#
+# Same-origin API pattern (matches your CRM/eCRD setup): /api/* → backend,
+# rest → frontend. No CORS needed.
+
+fran.goyainnova.com {
+    encode zstd gzip
+
+    @api path /api/*
+    handle @api {
+        reverse_proxy fincontrol-backend:8001
+    }
+
+    handle {
+        reverse_proxy fincontrol-frontend:80
+    }
+}
