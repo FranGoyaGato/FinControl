@@ -1,302 +1,282 @@
 # FinControl — Deploy en VPS (`fran.goyainnova.com`)
 
-Guía paso a paso para desplegar la app en tu VPS, siguiendo la convención `/opt/<app>` que ya usas (`contagoya`, `crm-evaclin`, `crmexternos`, `infra`), con Caddy como proxy inverso, Cloudflare Origin certs y un Mongo compartido que ya corre en el servidor.
+Guía alineada a tu convención existente (`/opt/infra` con `goya-caddy` + `goya-mongo` compartidos, `.env.production`, `scripts/deploy.sh` con rollback automático).
 
-- **Dominio**: `fran.goyainnova.com` (Cloudflare, naranja/proxied)
-- **Repo**: `FranGoyaGato/FinControl`
-- **Rama de deploy**: `main` (cada push dispara GitHub Actions)
-- **Ruta**: `/opt/fincontrol`
-- **Runtime**: Docker + Docker Compose
+- **Dominio**: `fran.goyainnova.com` (Cloudflare proxied naranja + certificado Origin)
+- **Repo**: `FranGoyaGato/FinControl` — rama de deploy: `main`
+- **Ruta**: `/opt/fincontrol/` (misma convención que `/opt/crm`, `/opt/webs/*`)
+- **Runtime**: Docker + Docker Compose, en la misma red externa `goya_net` que tu stack de `/opt/infra`
 
----
-
-## 0. Prerrequisitos
-
-En el VPS:
-- Docker + Docker Compose plugin (`docker compose ...`)
-- Caddy corriendo (contenedor o host)
-- Mongo compartido accesible (contenedor o instancia)
-- `git`
-
-En tu portátil:
-- Acceso SSH al VPS
-- Cuenta de GitHub con permisos de admin sobre `FranGoyaGato/FinControl`
-
----
-
-## 1. Cloudflare (una vez)
-
-1. **DNS**: en Cloudflare, crea un registro `A` para `fran` apuntando a la IP pública del VPS. **Proxy activado (naranja)**.
-2. **SSL/TLS mode**: en `SSL/TLS → Overview` deja **Full (strict)**.
-3. **Origin Certificate** (si aún no tienes uno *wildcard* para `*.goyainnova.com`):
-   - `SSL/TLS → Origin Server → Create Certificate`
-   - Common names: `*.goyainnova.com` y `goyainnova.com`
-   - Validez: 15 años → **Create**
-   - Copia el **Certificate** y la **Private Key** — las pegarás en el VPS en el siguiente paso.
-4. Si ya usas un wildcard para las otras apps, **salta este paso** y reutilízalo.
-
----
-
-## 2. Preparar el VPS
-
-Todo como `root` (siguiendo tu convención). Ajusta rutas si tu Caddy vive en otro sitio.
-
-### 2.1. Certificado Origin
-
-```bash
-mkdir -p /etc/caddy/certs
-# Pega el contenido del Certificate y la Key en estos dos ficheros:
-nano /etc/caddy/certs/goyainnova.com.pem   # certificado
-nano /etc/caddy/certs/goyainnova.com.key   # clave privada
-chmod 600 /etc/caddy/certs/goyainnova.com.*
+Este repo ya incluye:
+```
+Dockerfile.backend         # FastAPI + uvicorn (multi-worker)
+Dockerfile.frontend        # React build → Nginx alpine
+frontend/nginx.conf        # SPA fallback + proxy interno /api → backend
+docker-compose.yml         # backend + frontend en red goya_net
+.env.example               # plantilla → se copia como .env.production en el VPS
+scripts/deploy.sh          # deploy con health-check + rollback automático
+scripts/backup.sh          # mongodump diario del shared goya-mongo
+.github/workflows/deploy.yml   # dispara scripts/deploy.sh por SSH
+.dockerignore
 ```
 
-Si Caddy corre dentro de un contenedor, monta ese directorio como volumen (o usa la ruta ya existente en tu `caddy` compose).
+---
 
-### 2.2. Añadir el bloque en el Caddyfile
+## 1. Cloudflare (una sola vez)
 
-Edita el `Caddyfile` que ya usas para las otras apps (típicamente `/opt/infra/Caddyfile` o `/etc/caddy/Caddyfile`) y añade:
+1. En `dash.cloudflare.com` → DNS de `goyainnova.com` → añade un registro **A**:
+   - Name: `fran` · Value: IP pública del VPS · Proxy: **naranja (proxied)**
+2. `SSL/TLS → Overview` → **Full (strict)**
+3. Reutiliza el **Origin Certificate wildcard `*.goyainnova.com`** que ya usas en las otras apps. Si no lo tuvieras, créalo en `SSL/TLS → Origin Server → Create Certificate` (15 años). Los archivos ya deberían estar en el VPS en `/etc/caddy/certs/goyainnova.com.pem` y `.key` (o donde tengas montados los certs del contenedor `goya-caddy`).
+
+---
+
+## 2. Añadir el bloque al Caddyfile de `/opt/infra`
+
+Edita el Caddyfile compartido que ya usas para las otras apps:
+
+```bash
+nano /opt/infra/Caddyfile
+```
+
+Añade al final:
 
 ```caddyfile
 fran.goyainnova.com {
     tls /etc/caddy/certs/goyainnova.com.pem /etc/caddy/certs/goyainnova.com.key
-
     encode zstd gzip
 
-    # Reenvía todo (SPA + /api/*) al contenedor del frontend,
-    # que a su vez proxifica /api/* al backend por su red interna.
-    reverse_proxy fincontrol-frontend:80 {
-        header_up X-Real-IP {remote_host}
-        header_up X-Forwarded-Proto {scheme}
-    }
+    @api path /api/*
+    handle @api { reverse_proxy fincontrol-backend:8001 }
+    handle      { reverse_proxy fincontrol-frontend:80 }
 }
 ```
 
-> Para que Caddy pueda resolver `fincontrol-frontend` por nombre, el contenedor de Caddy y el `frontend` de FinControl deben estar en la **misma red Docker externa**. Descubre el nombre exacto con:
-> ```bash
-> docker inspect $(docker ps --filter name=caddy -q) | grep -A3 Networks
-> ```
-> El nombre suele ser `caddy`, `proxy` o `web`. Anótalo — lo usarás en `docker-compose.yml`.
+> Las rutas de los certs deben coincidir con las que ya montas en el servicio `caddy` de `/opt/infra/docker-compose.yml`. Si en tu convención los tienes en otra ruta, ajusta.
 
-Recarga Caddy:
+Recarga Caddy sin reiniciar el resto:
+
 ```bash
-# Si Caddy corre en contenedor:
-docker exec caddy caddy reload --config /etc/caddy/Caddyfile
-# O reinicia el compose de tu carpeta infra:
-docker compose -f /opt/infra/docker-compose.yml restart caddy
+docker exec goya-caddy caddy reload --config /etc/caddy/Caddyfile
 ```
 
-### 2.3. Red Docker compartida
+Verifica que no hay errores:
 
-En `/opt/fincontrol/docker-compose.yml` (que se clonará desde el repo) verás:
-
-```yaml
-networks:
-  caddy:
-    external: true
+```bash
+docker logs --tail 40 goya-caddy
 ```
 
-Si el nombre real de tu red **no** es `caddy`, edita esa clave a la que anotaste arriba **antes del primer despliegue** (haz commit del cambio o edítalo en el VPS y vuelve a levantar).
+---
 
-### 2.4. Mongo compartido
+## 3. Preparar el directorio en el VPS
 
-Necesito que decidas cómo conectas al Mongo existente:
-
-- **Opción A — Mongo en Docker**: descubre el nombre de su contenedor y de su red:
-  ```bash
-  docker ps --format 'table {{.Names}}\t{{.Networks}}' | grep -i mongo
-  ```
-  Añade esa red a `docker-compose.yml` bajo `backend.networks` y bajo `networks:` como `external: true`. La cadena de conexión será algo como `mongodb://<usuario>:<password>@<nombre_contenedor>:27017`.
-
-- **Opción B — Mongo escuchando en un puerto/IP**: usa la IP privada del VPS o `host.docker.internal` (Linux: añade `extra_hosts: ["host.docker.internal:host-gateway"]` al servicio backend). La cadena típica: `mongodb://user:pass@10.0.0.X:27017`.
-
-Anota la cadena — la pondrás en `.env` en el paso 3.3.
-
-### 2.5. Crear el directorio y clonar
+Como `root` (siguiendo tu convención `/opt/<app>`):
 
 ```bash
 mkdir -p /opt/fincontrol
 cd /opt/fincontrol
 git clone https://github.com/FranGoyaGato/FinControl.git .
+chmod +x scripts/*.sh
 ```
 
-### 2.6. Clave SSH de deploy (para GitHub Actions)
+### 3.1. Confirmar el nombre real de la red
 
-Genera un par de claves **dedicado** a este deploy (no reutilices la tuya personal):
+En el `docker-compose.yml` de FinControl la red se llama `goya_net` (como en el compose de `/opt/infra`). Confirma que es la misma con:
+
+```bash
+docker network ls | grep goya
+# Debe listar algo como "infra_goya_net" o "goya_net"
+```
+
+Si el nombre real difiere (Docker antepone el proyecto compose, típicamente `infra_`), edita `docker-compose.yml`:
+
+```yaml
+networks:
+  goya_net:
+    external: true
+    name: infra_goya_net   # ← el nombre real que devolvió `docker network ls`
+```
+
+### 3.2. Crear `.env.production`
+
+```bash
+cp .env.example .env.production
+nano .env.production
+```
+
+Rellena:
+
+```env
+MONGO_URL=mongodb://goyaadmin:<PASS_QUE_YA_USAS>@goya-mongo:27017/?authSource=admin
+DB_NAME=fincontrol
+MONGO_CONTAINER=goya-mongo
+
+CORS_ORIGINS=https://fran.goyainnova.com
+
+JWT_SECRET=$(openssl rand -hex 48)     # ← ejecuta el comando y pega el resultado
+
+ADMIN_EMAIL=fran@goyainnova.com
+ADMIN_PASSWORD=<contraseña fuerte para el primer login; se rota luego desde la UI>
+```
+
+Permisos:
+
+```bash
+chmod 600 .env.production
+```
+
+> El seed del admin es **idempotente**: si más tarde rotas la contraseña desde `Configuración → Seguridad`, un `restart` NO la volverá a poner a la del `.env.production`.
+
+### 3.3. Crear la base `fincontrol` (una única vez)
+
+Si tu Mongo compartida ya tiene usuarios (goyaadmin), FinControl escribirá automáticamente en `fincontrol`. No hace falta crearla a mano — Mongo la crea al primer insert. Si quisieras un usuario dedicado a esta app en vez del root, podrías crearlo con:
+
+```bash
+source /opt/infra/.env.production
+docker exec -it goya-mongo mongosh -u goyaadmin -p "$MONGO_ROOT_PASS" --authenticationDatabase admin <<'JS'
+use fincontrol
+db.createUser({
+  user: "fincontrol_app",
+  pwd: "<PASS_DEDICADA>",
+  roles: [{ role: "readWrite", db: "fincontrol" }]
+})
+JS
+```
+…y ajustar `MONGO_URL` en `.env.production` a `mongodb://fincontrol_app:<PASS>@goya-mongo:27017/fincontrol?authSource=fincontrol`.
+
+---
+
+## 4. Primer despliegue manual
+
+```bash
+cd /opt/fincontrol
+bash scripts/deploy.sh
+```
+
+`deploy.sh` hace: `git reset --hard origin/main` → `docker compose build --pull` → `up -d` → health-check del backend (30 × 3 s) → rollback automático si falla.
+
+Comprueba:
+
+```bash
+docker compose --env-file .env.production ps
+docker logs -f fincontrol-backend    # deberías ver "Seeded admin user ..." la primera vez
+```
+
+Y desde el navegador: **https://fran.goyainnova.com** → login con `ADMIN_EMAIL` / `ADMIN_PASSWORD` → entra a Configuración → Seguridad → **rota la contraseña**. A partir de aquí el `.env.production` queda desactualizado a propósito (bien).
+
+---
+
+## 5. Configurar el CI/CD (GitHub Actions)
+
+Cada `git push` a `main` (también los que hagas desde Emergent con "Save to GitHub") dispara `.github/workflows/deploy.yml`, que se conecta por SSH al VPS y ejecuta `bash /opt/fincontrol/scripts/deploy.sh`. Si el health-check falla, el propio script hace **rollback** al commit anterior.
+
+### 5.1. Generar clave SSH dedicada al CI
+
+En el VPS:
 
 ```bash
 ssh-keygen -t ed25519 -f /root/.ssh/fincontrol_deploy -N "" -C "github-actions@fincontrol"
 cat /root/.ssh/fincontrol_deploy.pub >> /root/.ssh/authorized_keys
 chmod 600 /root/.ssh/authorized_keys
+cat /root/.ssh/fincontrol_deploy      # ← copia esto entero, incluidas las líneas BEGIN/END
 ```
 
-Guarda el **contenido de la clave privada** para el paso 4:
-```bash
-cat /root/.ssh/fincontrol_deploy
-```
-(la clave pública ya está autorizada — la privada solo la usa GitHub Actions).
+### 5.2. Añadir 4 secretos en GitHub
 
----
-
-## 3. Configurar `.env` en el VPS
-
-**Nunca** subas `.env` al repo (`.gitignore` lo excluye). Se crea a mano en el VPS.
-
-### 3.1. Generar JWT secret
-
-```bash
-openssl rand -hex 48
-```
-Cópialo, lo pegas abajo.
-
-### 3.2. Copiar plantilla
-
-```bash
-cd /opt/fincontrol
-cp .env.example .env
-nano .env
-```
-
-### 3.3. Rellenar los campos
-
-```env
-MONGO_URL=mongodb://usuario:pass@nombre_contenedor_mongo:27017
-DB_NAME=fincontrol
-CORS_ORIGINS=https://fran.goyainnova.com
-JWT_SECRET=<pega aquí el hex que generó openssl>
-ADMIN_EMAIL=fran@goyainnova.com          # o el que quieras semillar
-ADMIN_PASSWORD=<contraseña fuerte>       # rotable después desde Config → Seguridad
-```
-
-Permisos:
-```bash
-chmod 600 .env
-```
-
----
-
-## 4. Secretos en GitHub (una vez)
-
-En `https://github.com/FranGoyaGato/FinControl/settings/secrets/actions` añade estos 4 **Repository secrets**:
+`https://github.com/FranGoyaGato/FinControl/settings/secrets/actions`:
 
 | Nombre | Valor |
 |---|---|
-| `VPS_HOST` | La IP pública o el hostname del VPS (ej. `aplicativos.tudominio.com` o `1.2.3.4`) |
-| `VPS_USER` | `root` (según tu convención actual) |
-| `VPS_SSH_PORT` | `22` (o el puerto SSH que uses) |
-| `VPS_SSH_KEY` | **Contenido completo** de `/root/.ssh/fincontrol_deploy` (privada), incluido `-----BEGIN OPENSSH PRIVATE KEY-----` y `-----END OPENSSH PRIVATE KEY-----` |
+| `VPS_HOST` | IP pública del VPS |
+| `VPS_USER` | `root` |
+| `VPS_SSH_PORT` | `22` (o el que uses) |
+| `VPS_SSH_KEY` | Contenido completo de `/root/.ssh/fincontrol_deploy` (privada) |
+
+### 5.3. Probar
+
+Haz cualquier cambio menor y push:
+
+```bash
+echo "# ci-check" >> README.md
+git commit -am "chore: ci sanity" && git push origin main
+```
+
+En GitHub → **Actions** → verás el workflow. En 2-3 minutos el VPS tiene el nuevo commit.
 
 ---
 
-## 5. Primer despliegue
+## 6. Backups automáticos
 
-Desde el VPS, en `/opt/fincontrol`:
+`scripts/backup.sh` ya volca la base `fincontrol` del contenedor compartido `goya-mongo` a `/opt/fincontrol/backups/` con retención de 30 días.
 
-```bash
-cd /opt/fincontrol
-docker compose build --pull
-docker compose up -d
-docker compose ps
+Añade a `crontab -e` en el VPS (usuario `root`):
+
+```cron
+# Backup nocturno FinControl a las 04:15
+15 4 * * * /opt/fincontrol/scripts/backup.sh >> /opt/fincontrol/backups/backup.log 2>&1
 ```
 
-Comprueba logs:
+Prueba manualmente:
+
 ```bash
-docker compose logs -f backend    # deberías ver "Seeded admin user ..." la primera vez
-docker compose logs -f frontend
+mkdir -p /opt/fincontrol/backups
+bash /opt/fincontrol/scripts/backup.sh
+ls -lh /opt/fincontrol/backups/
 ```
 
-Verifica desde el propio VPS:
+Restore de emergencia:
+
 ```bash
-curl -I http://fincontrol-frontend                # 200 desde la red caddy
-docker exec fincontrol-backend curl -s http://127.0.0.1:8001/api/auth/me
+source /opt/fincontrol/.env.production
+docker cp /opt/fincontrol/backups/fincontrol_YYYYMMDD_HHMMSS.gz goya-mongo:/tmp/
+docker exec -it goya-mongo mongorestore \
+  --uri "$MONGO_URL" \
+  --nsInclude "fincontrol.*" \
+  --drop \
+  --gzip --archive=/tmp/fincontrol_YYYYMMDD_HHMMSS.gz
 ```
 
-Y desde tu navegador: **https://fran.goyainnova.com** → verás la pantalla de login.
-
-Entra con `ADMIN_EMAIL` + `ADMIN_PASSWORD` del `.env`, y **acto seguido rota la contraseña** desde `Configuración → Seguridad`. A partir de ese momento el `.env` puede quedar desactualizado sin problema (el seed es idempotente y no la reescribe).
+Opcional: replica offsite a Cloudflare R2 tal y como haces con `eCRD` (`rclone` con el mismo remote `r2:` que ya usas).
 
 ---
 
-## 6. Cómo funciona el deploy automático
-
-Cada `git push` sobre `main` (o "Save to GitHub" desde Emergent, si esa es tu rama por defecto) dispara `.github/workflows/deploy.yml`:
-
-1. GitHub Actions se conecta por SSH al VPS con la clave configurada.
-2. Hace `git reset --hard origin/main` sobre `/opt/fincontrol` (sobrescribe cambios locales sin tocar `.env`, que no está versionado).
-3. `docker compose build --pull` → reconstruye backend + frontend con la última imagen base.
-4. `docker compose up -d --remove-orphans` → reemplaza los contenedores sin caer la red (Docker sustituye uno a uno).
-5. `docker image prune -f` limpia capas huérfanas.
-
-Puedes seguirlo en `Actions` del repo, y también lanzarlo manualmente con **Run workflow**.
-
----
-
-## 7. Operación diaria
+## 7. Operación día a día
 
 | Tarea | Comando |
 |---|---|
-| Ver logs backend en vivo | `docker compose logs -f backend` |
-| Ver logs frontend | `docker compose logs -f frontend` |
-| Reiniciar solo backend | `docker compose restart backend` |
-| Reconstruir sin push | `docker compose up -d --build` |
-| Ver estado | `docker compose ps` |
-| Bajar todo | `docker compose down` |
-| Consola en el backend | `docker exec -it fincontrol-backend bash` |
-| Mongo shell (si usas contenedor compartido) | `docker exec -it <mongo-container> mongosh $MONGO_URL` |
-
-### Backups Mongo (recomendado)
-
-Añade a `crontab -e` en el VPS:
-
-```cron
-0 3 * * * docker exec <mongo-container> mongodump --db fincontrol --archive --gzip > /opt/fincontrol/backups/fincontrol_$(date +\%Y\%m\%d).gz && find /opt/fincontrol/backups -type f -mtime +30 -delete
-```
-```bash
-mkdir -p /opt/fincontrol/backups
-```
-
-Restaurar:
-```bash
-docker exec -i <mongo-container> mongorestore --archive --gzip < /opt/fincontrol/backups/fincontrol_YYYYMMDD.gz
-```
+| Logs backend en vivo | `docker logs -f fincontrol-backend` |
+| Logs frontend | `docker logs -f fincontrol-frontend` |
+| Deploy manual (fuerza) | `bash /opt/fincontrol/scripts/deploy.sh` |
+| Rebuild sin tirar del repo | `cd /opt/fincontrol && docker compose --env-file .env.production up -d --build` |
+| Rollback a un commit | `git reset --hard <hash> && docker compose --env-file .env.production up -d --build` |
+| Bajar todo | `docker compose --env-file .env.production down` |
+| Shell dentro del backend | `docker exec -it fincontrol-backend bash` |
+| Mongo shell de fincontrol | `source /opt/fincontrol/.env.production && docker exec -it goya-mongo mongosh "$MONGO_URL"` |
 
 ---
 
-## 8. Rollback rápido
-
-En el VPS:
-```bash
-cd /opt/fincontrol
-git log --oneline -n 20         # localiza el hash bueno
-git reset --hard <hash>
-docker compose up -d --build
-```
-
-O desde la interfaz de Emergent: usa **Rollback** al checkpoint anterior y luego "Save to GitHub" → el workflow se dispara solo.
-
----
-
-## 9. Solución de problemas
+## 8. Troubleshooting rápido
 
 | Síntoma | Causa habitual | Fix |
 |---|---|---|
-| 502 en `fran.goyainnova.com` desde Cloudflare | Caddy no encuentra `fincontrol-frontend` | Confirma que `frontend` está en la misma red externa que Caddy (`docker inspect fincontrol-frontend` debe listar la red `caddy`). |
-| Backend cae con `KeyError: 'MONGO_URL'` | Falta `.env` o no se cargó | Comprueba `docker compose config` que la sección `env_file: .env` está y que `/opt/fincontrol/.env` existe y es legible. |
-| GitHub Action falla en `git reset` | La clave SSH no tiene acceso | Verifica que la privada en el secret coincide con la pública en `authorized_keys` y que el usuario/puerto son correctos. |
-| Cloudflare 525 (SSL handshake) | Certificado Origin no cargado en Caddy | Revisa rutas de `tls` en el Caddyfile y permisos `chmod 600`. |
-| Los movimientos importados no aparecen | Backend levantado pero apunta a otro Mongo | `docker exec fincontrol-backend env \| grep MONGO_URL`. |
+| 502 Bad Gateway desde Cloudflare | `goya-caddy` no ve al `fincontrol-frontend` | Verifica que ambos están en `goya_net`: `docker network inspect goya_net \| grep -E "fincontrol\|goya-caddy"`. |
+| Cloudflare 525 (SSL handshake) | Rutas TLS mal en el Caddyfile | Revisa `tls /etc/caddy/certs/...` y `docker logs goya-caddy`. |
+| Backend cae con `KeyError: 'MONGO_URL'` | Falta `.env.production` o no está el `env_file` en compose | `docker compose --env-file .env.production config` |
+| `deploy.sh` hace rollback una y otra vez | Backend crashea al arrancar (típicamente Mongo o JWT_SECRET) | `docker logs fincontrol-backend --tail 80` |
+| GitHub Action falla `Permission denied (publickey)` | Clave/usuario/puerto mal en secretos | Prueba manual `ssh -i /root/.ssh/fincontrol_deploy root@VPS_HOST` |
+| Movimientos importados no aparecen | Backend apunta a otra Mongo | `docker exec fincontrol-backend env \| grep MONGO_URL` |
 
 ---
 
 ## Checklist final
 
-- [ ] DNS `fran.goyainnova.com` → IP del VPS (Cloudflare naranja)
-- [ ] Certificado Origin en `/etc/caddy/certs/`
-- [ ] Bloque `fran.goyainnova.com` añadido al Caddyfile y Caddy recargado
-- [ ] Red Docker compartida identificada y reflejada en `docker-compose.yml`
-- [ ] `/opt/fincontrol/.env` creado con `JWT_SECRET`, `ADMIN_*` y `MONGO_URL` reales
-- [ ] Clave `fincontrol_deploy` en `authorized_keys` del VPS
-- [ ] 4 secretos añadidos a GitHub Actions
-- [ ] Primer `docker compose up -d` OK y login funcionando
-- [ ] Contraseña rotada desde `Configuración → Seguridad`
-- [ ] Cron de backup Mongo configurado
+- [ ] DNS `fran.goyainnova.com` → IP VPS (Cloudflare proxied)
+- [ ] Bloque `fran.goyainnova.com` en `/opt/infra/Caddyfile` y `caddy reload` OK
+- [ ] Certificado Origin `*.goyainnova.com` accesible desde `goya-caddy`
+- [ ] `docker network ls` confirma nombre real de la red compartida (ajustado en `docker-compose.yml` si hace falta)
+- [ ] `/opt/fincontrol/.env.production` creado, `chmod 600`, con `MONGO_URL`, `JWT_SECRET` (openssl), `ADMIN_*`
+- [ ] `bash scripts/deploy.sh` primer despliegue OK, `docker compose ps` muestra `fincontrol-backend` y `fincontrol-frontend` **Up**
+- [ ] Login web funciona → **contraseña rotada desde UI**
+- [ ] 4 secretos en GitHub (`VPS_HOST`, `VPS_USER`, `VPS_SSH_PORT`, `VPS_SSH_KEY`)
+- [ ] Push de prueba a `main` → Actions verde
+- [ ] Cron `scripts/backup.sh` activo y probado

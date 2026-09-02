@@ -1,0 +1,16 @@
+**/node_modules
+**/build
+**/dist
+**/.git
+**/.github
+**/__pycache__
+**/*.pyc
+**/.venv
+**/venv
+**/.env
+**/.env.*
+**/backups
+**/*.log
+**/DEPLOY.md
+**/README.md
+**/test_reports

@@ -11,7 +11,7 @@ concurrency:
 
 jobs:
   deploy:
-    name: SSH build & up
+    name: SSH deploy
     runs-on: ubuntu-latest
     steps:
       - name: Deploy via SSH
@@ -22,36 +22,4 @@ jobs:
           key: ${{ secrets.VPS_SSH_KEY }}
           port: ${{ secrets.VPS_SSH_PORT }}
           command_timeout: 20m
-          script: |
-            set -euo pipefail
-
-            APP_DIR=/opt/fincontrol
-            REPO_URL="https://github.com/${{ github.repository }}.git"
-            BRANCH="${{ github.ref_name }}"
-
-            echo "==> Deploying $GITHUB_REPOSITORY@$BRANCH into $APP_DIR"
-
-            # 1. First run: clone. Later runs: fast-forward.
-            if [ ! -d "$APP_DIR/.git" ]; then
-              mkdir -p "$APP_DIR"
-              git clone --branch "$BRANCH" "$REPO_URL" "$APP_DIR"
-            fi
-
-            cd "$APP_DIR"
-            git fetch --all --prune
-            git reset --hard "origin/$BRANCH"
-
-            # 2. .env must already exist on the VPS (never in the repo).
-            if [ ! -f "$APP_DIR/.env" ]; then
-              echo "!! Missing $APP_DIR/.env — create it from .env.example and re-run."
-              exit 1
-            fi
-
-            # 3. Build + roll containers (zero-downtime for frontend/backend).
-            docker compose pull  || true
-            docker compose build --pull
-            docker compose up -d --remove-orphans
-
-            # 4. House-keeping.
-            docker image prune -f
-            docker compose ps
+          script: bash /opt/fincontrol/scripts/deploy.sh
