@@ -87,22 +87,12 @@ git clone https://github.com/FranGoyaGato/FinControl.git .
 chmod +x scripts/*.sh
 ```
 
-### 3.1. Confirmar el nombre real de la red
+### 3.1. La red externa se llama `web` en tu VPS
 
-En el `docker-compose.yml` de FinControl la red se llama `goya_net` (como en el compose de `/opt/infra`). Confirma que es la misma con:
+Ya está reflejado en el `docker-compose.yml`. Si algún día cambia, verifica con:
 
 ```bash
-docker network ls | grep goya
-# Debe listar algo como "infra_goya_net" o "goya_net"
-```
-
-Si el nombre real difiere (Docker antepone el proyecto compose, típicamente `infra_`), edita `docker-compose.yml`:
-
-```yaml
-networks:
-  goya_net:
-    external: true
-    name: infra_goya_net   # ← el nombre real que devolvió `docker network ls`
+docker inspect caddy --format '{{range $k,$_ := .NetworkSettings.Networks}}{{$k}} {{end}}'
 ```
 
 ### 3.2. Crear `.env.production`

@@ -1,4 +1,17 @@
 services:
+  mongo:
+    image: mongo:7
+    container_name: fincontrol-mongo
+    restart: unless-stopped
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: ${MONGO_ROOT_USER}
+      MONGO_INITDB_ROOT_PASSWORD: ${MONGO_ROOT_PASS}
+    volumes:
+      - mongo_data:/data/db
+    networks:
+      - internal
+    # Not exposed on the host — only reachable from the internal network.
+
   backend:
     build:
       context: .
@@ -9,8 +22,12 @@ services:
     env_file: .env.production
     expose:
       - "8001"
+    depends_on:
+      - mongo
     networks:
-      - goya_net
+      - internal
+      # `web` is the external Docker network your central Caddy container lives on.
+      - web
 
   frontend:
     build:
@@ -27,10 +44,16 @@ services:
     expose:
       - "80"
     networks:
-      - goya_net
+      - internal
+      - web
+
+volumes:
+  mongo_data:
 
 networks:
-  # Same external network your /opt/infra stack uses so we can reach
-  # goya-mongo and be reached by goya-caddy by service name.
-  goya_net:
+  internal:
+    driver: bridge
+  # Same network your central `caddy` container uses (verified via
+  # `docker inspect caddy` → "web"). External so we don't try to create it.
+  web:
     external: true
