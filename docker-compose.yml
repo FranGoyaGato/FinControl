@@ -1,0 +1,43 @@
+services:
+  backend:
+    build:
+      context: .
+      dockerfile: Dockerfile.backend
+    image: fincontrol/backend:latest
+    container_name: fincontrol-backend
+    restart: unless-stopped
+    env_file: .env
+    expose:
+      - "8001"
+    networks:
+      - fincontrol
+      # If your shared Mongo lives on another Docker network, uncomment
+      # and set its name here so backend can reach it by service name.
+      # - mongo_shared
+    depends_on: []
+
+  frontend:
+    build:
+      context: .
+      dockerfile: Dockerfile.frontend
+      args:
+        # Empty string → frontend calls the API on the same origin (Caddy handles TLS).
+        REACT_APP_BACKEND_URL: ""
+    image: fincontrol/frontend:latest
+    container_name: fincontrol-frontend
+    restart: unless-stopped
+    depends_on:
+      - backend
+    networks:
+      - fincontrol
+      # This must match the external network your Caddy container is attached to.
+      # Discover it with: docker inspect caddy | grep -A2 Networks
+      - caddy
+
+networks:
+  fincontrol:
+    driver: bridge
+  caddy:
+    external: true
+  # mongo_shared:
+  #   external: true

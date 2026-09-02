@@ -1,0 +1,23 @@
+# syntax=docker/dockerfile:1.6
+
+# ---- Stage 1: build React ----
+FROM node:20-alpine AS build
+WORKDIR /app
+
+# The React app calls `${REACT_APP_BACKEND_URL}/api/...`. In production we serve
+# the API on the SAME origin as the frontend (Caddy → frontend nginx → /api → backend),
+# so leaving this empty makes it a relative path (`/api/...`) — no CORS needed.
+ARG REACT_APP_BACKEND_URL=""
+ENV REACT_APP_BACKEND_URL=$REACT_APP_BACKEND_URL
+
+COPY frontend/package.json frontend/yarn.lock ./
+RUN yarn install --frozen-lockfile
+
+COPY frontend/ ./
+RUN yarn build
+
+# ---- Stage 2: nginx runtime ----
+FROM nginx:1.27-alpine
+COPY frontend/nginx.conf /etc/nginx/conf.d/default.conf
+COPY --from=build /app/build /usr/share/nginx/html
+EXPOSE 80
