@@ -1,0 +1,36 @@
+{
+  "summary": "Frontend-only regression/verification of the dynamic Year filter fix (Ingresos + Gastos) plus Dashboard KPI colour and 'Año anterior' regressions. Logged in with seeded admin on the preview URL. All 8 requested checks PASSED (8/8). Year Select in both pages now renders ['Todos los años','2026','2025','2024','2023','2022'] — the real current year 2026 is the first numeric option and is selectable. Selecting 2026 enables the Mes filter and yields an empty (0 tx / 0,00 €) list with no console/UI errors; selecting 2025 restores 73 ingresos / 79.358,31 € and 235 gastos / 78.018,60 € with totals updating; 'Limpiar filtros' restores the unfiltered totals on both pages. Category filter 'Sin categoría' still works without crashing. Dashboard KPIs: Ingresos text-blue-700, Gastos text-red-700, Flujo Neto blue when >=0 (verified 1.339,71 € positive -> blue). New 'Año anterior' button present next to 'Mes'/'Año actual' and loads 2025: donut title 'Gastos por categoría — Año 2025', line chart 'Flujo mensual — 2025', KPIs 79.358,31 € / 78.018,60 €.",
+  "backend_issues": {
+    "critical": [],
+    "minor": []
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [
+      {
+        "flow": "Dashboard donut (expense-by-category) vs Gastos page 'Resumen por Categoría' / 'Sin categoría' filter",
+        "issue": "PRE-EXISTING, NOT caused by this change, reported for awareness only. For 'Año anterior' (2025) the Dashboard donut lists 'Sin categoría' 17.843,69 € and 'AMAZON' 6.916,90 €, but the Gastos page for the same period lists NO 'Sin categoría' row and NO 'AMAZON' category, and its 16 category rows sum exactly to the KPI total 78.018,60 €. So /api/dashboard/expense-by-category appears to aggregate a wider set (card/tarjeta transactions) than the /api/dashboard KPI 'Gastos del Año' and than the Gastos page, and the donut slices therefore do not add up to the displayed expense KPI. Worth confirming this is intentional; if it is, consider labelling the donut so the user knows it includes tarjetas.",
+        "affected_selectors": ["[data-testid=\"donut-card\"]", "[data-testid^=\"donut-legend-\"]", "[data-testid^=\"kpi-gastos\"]"]
+      }
+    ],
+    "design_issues": []
+  },
+  "test_report_links": ["/app/test_reports/iteration_5.json"],
+  "action_items": [
+    "No action required for the year-filter fix — verified working on Ingresos and Gastos, 2026 selectable.",
+    "OPTIONAL: clarify/reconcile Dashboard donut totals vs the 'Gastos del Año' KPI and the Gastos page category summary (donut includes categories such as 'AMAZON' and a 17.843,69 € 'Sin categoría' bucket that never appear on the Gastos page)."
+  ],
+  "critical_code_review_comments": [
+    "Income.js and Expenses.js duplicate the identical year/month filter block (Select + 12 month SelectItems + Limpiar filtros) and the same year-generation expression. Extract a shared <PeriodFilter year month onChange testIdPrefix /> component to avoid the exact class of divergence that caused this bug (hardcoded 2022-2025 in two places).",
+    "The year list is computed inline inside render as `new Date().getFullYear()` on every re-render. Hoist it to a module-level constant or useMemo; also consider deriving the range from the actual min/max transaction dates so historical imports older than 5 years remain filterable.",
+    "Income.js is 419 lines and Expenses.js is larger still — both are approaching the point where the table row, filters and export logic should be split into separate modules."
+  ],
+  "updated_files": [],
+  "success_rate": {"backend": "not tested (frontend-only request)", "frontend": "100% (8/8 requested checks passed)"},
+  "seed_data_creation": "None. Read-only testing against existing seeded data (73 ingresos / 235 gastos bancarios, all from 2025). No transactions were created, categorised or deleted.",
+  "should_call_test_agent_after_fix": false,
+  "should_main_agent_self_test": true,
+  "test_credentials": "ADMIN_EMAIL / ADMIN_PASSWORD from /app/backend/.env (fgoya@laboratoriogoya.com). Login works, JWT stored in localStorage under auth_token.",
+  "context_for_next_testing_agent": "Preview URL: REACT_APP_BACKEND_URL in /app/frontend/.env. Login via [data-testid=login-form] -> login-email-input / login-password-input / login-submit-btn; dashboard readiness marker is [data-testid=filters-card]. Nav testids are nav-ingresos / nav-gastos / nav-tarjetas / nav-importar / nav-config (plus -mobile variants). Year filter testids: year-filter-select (Ingresos) and year-filter-select-expenses (Gastos); month-filter-select / month-filter-select-expenses; clear-filters-btn / clear-filters-btn-expenses. Dropdown options must be read via [role=\"option\"] after clicking the trigger. There is NO 2026 data — an empty result for 2026 is expected and correct. Remaining unexplored areas this iteration: Tarjetas, Importar and Config pages, Excel export, and the donut-vs-KPI aggregation discrepancy noted above.",
+  "rca_of_the_issue": "Original bug: the Año <Select> in Income.js and Expenses.js contained six hardcoded <SelectItem> nodes (2022-2025), so once the real clock rolled into 2026 the current year became unselectable. Fix verified in code and in the browser: both files now build the option list with Array.from({length: 5}, (_, i) => new Date().getFullYear() - i), producing 2026, 2025, 2024, 2023, 2022 with the 'Todos los años' sentinel preserved; the runtime dropdown confirms exactly this order on both pages. Residual risk is only that the window is fixed at 5 years, so imports older than 2022 will become unfilterable in future years."
+}
