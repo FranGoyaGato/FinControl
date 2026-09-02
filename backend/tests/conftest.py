@@ -15,16 +15,22 @@ API = f"{BASE_URL}/api"
 
 
 def load_credentials():
-    """Read admin credentials from /app/memory/test_credentials.md."""
+    """Read admin credentials from /app/memory/test_credentials.md, falling back to
+    /app/backend/.env (the credentials doc now only points at ADMIN_EMAIL/ADMIN_PASSWORD)."""
     path = Path("/app/memory/test_credentials.md")
-    if not path.exists():
-        return None
-    content = path.read_text(encoding="utf-8")
-    email = re.search(r'(?im)^\s*(?:[-*]\s*)?(?:\*\*)?email(?:\*\*)?\s*:\s*`?([^`\s]+)', content)
-    pwd = re.search(r'(?im)^\s*(?:[-*]\s*)?(?:\*\*)?password(?:\*\*)?\s*:\s*`?([^`\s]+)', content)
-    if not email or not pwd:
-        return None
-    return {"email": email.group(1), "password": pwd.group(1)}
+    if path.exists():
+        content = path.read_text(encoding="utf-8")
+        email = re.search(r'(?im)^\s*(?:[-*]\s*)?(?:\*\*)?email(?:\*\*)?\s*:\s*`?([^`\s]+)', content)
+        pwd = re.search(r'(?im)^\s*(?:[-*]\s*)?(?:\*\*)?password(?:\*\*)?\s*:\s*`?([^`\s]+)', content)
+        if email and pwd and "@" in email.group(1):
+            return {"email": email.group(1), "password": pwd.group(1)}
+
+    backend_env = dotenv_values("/app/backend/.env")
+    admin_email = backend_env.get("ADMIN_EMAIL")
+    admin_password = backend_env.get("ADMIN_PASSWORD")
+    if admin_email and admin_password:
+        return {"email": admin_email.strip().lower(), "password": admin_password}
+    return None
 
 
 @pytest.fixture(scope="session")

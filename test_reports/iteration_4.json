@@ -1,0 +1,37 @@
+{
+  "summary": "Backend-only regression testing of the seed_admin() DuplicateKeyError fix. Ran 5 consecutive fast supervisor restarts (0 startup failures, 'Application startup complete' every time), simulated the real production race with 8 concurrent seed_admin() calls on an empty users collection (0 exceptions, exactly 1 user document), and re-ran the full pytest suite: 83/83 pass (82 passed + 1 xpassed). Auth flows (login 200+token, /auth/me 200, unauthenticated /api/accounts 401) and the seed-idempotency-after-password-rotation flow all PASS. Mongo still holds exactly 1 user doc with the seed email and the unique email_1 index is present.",
+  "backend_issues": {
+    "critical": [],
+    "minor": []
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "test_report_links": [
+    "/app/backend/tests/backend_test.py",
+    "/app/backend/tests/test_auth.py",
+    "/app/backend/tests/conftest.py",
+    "/app/backend/tests/manual_seed_race.py",
+    "/app/backend/tests/manual_seed_idempotency.py",
+    "/app/test_reports/pytest/pytest_results.xml"
+  ],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "seed_admin() fix is correct: find_one pre-check + try/except DuplicateKeyError around insert_one makes the seed race-safe without ever overwriting a rotated password hash. Verified empirically with 8 concurrent seeders.",
+    "Non-blocking: startup wraps create_index('email', unique=True) in a broad `except Exception` that only logs a warning. If a legacy DB already contains duplicate emails the index silently never gets created and the race protection would be gone; consider logging at ERROR level or surfacing that condition.",
+    "Non-blocking: /app/backend/server.py is 1161 lines (>700). Consider splitting into routers (auth, transactions, import, dashboard) for maintainability.",
+    "Non-blocking: uses deprecated @app.on_event('startup'); migrate to the lifespan context manager."
+  ],
+  "updated_files": [
+    "/app/backend/tests/conftest.py",
+    "/app/backend/tests/manual_seed_race.py"
+  ],
+  "success_rate": {"backend": "100%", "frontend": "not tested (backend-only request)"},
+  "seed_data_creation": "No persistent seed data. manual_seed_race.py temporarily deletes and re-inserts the admin user (ends with exactly 1 doc, .env password); manual_seed_idempotency.py rotates the password and restores it at the end.",
+  "should_call_test_agent_after_fix": false,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "IMPORTANT test-infra fix I made: /app/memory/test_credentials.md no longer contains literal credentials (it says 'Email: see ADMIN_EMAIL in /app/backend/.env'), which made the old conftest regex extract the word 'see' as the email and every authenticated test failed with 'Login failed (422)'. conftest.load_credentials() now validates the parsed email contains '@' and falls back to ADMIN_EMAIL/ADMIN_PASSWORD from /app/backend/.env. Suite: 83 tests in /app/backend/tests (backend_test.py + test_auth.py) all green. New /app/backend/tests/manual_seed_race.py reproduces/validates the DuplicateKeyError race (run standalone, not part of pytest since it mutates the users collection).",
+  "rca_of_the_issue": "Original crash: two racing startups (or uvicorn reloader + worker) both passed the find_one existence check, then the second insert_one violated the new unique index on users.email, raising DuplicateKeyError inside the startup event and aborting FastAPI ('Application startup failed. Exiting.'). The applied fix swallows DuplicateKeyError, treating the unique index as the source of truth. Verified: 8 concurrent seed_admin() coroutines from a clean collection produce 1 document and 0 exceptions; 5 rapid supervisor restarts produce 0 startup failures."
+}

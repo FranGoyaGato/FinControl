@@ -19,6 +19,7 @@ from decimal import Decimal
 import re
 import bcrypt
 import jwt
+from pymongo.errors import DuplicateKeyError
 
 
 ROOT_DIR = Path(__file__).parent
@@ -143,11 +144,16 @@ api_router = APIRouter(prefix="/api", dependencies=[Depends(get_current_user)])
 # ============ SEED ADMIN ============
 
 async def seed_admin():
-    """Create the single admin user on startup if it doesn't exist. Idempotent."""
+    """Create the single admin user on startup if it doesn't exist. Idempotent
+    even under a race between two concurrent startups: the unique index on
+    users.email is the source of truth, so a DuplicateKeyError just means the
+    user is already there — safe to ignore."""
     admin_email = os.environ['ADMIN_EMAIL'].lower().strip()
     admin_password = os.environ['ADMIN_PASSWORD']
     existing = await db.users.find_one({'email': admin_email})
-    if existing is None:
+    if existing is not None:
+        return
+    try:
         await db.users.insert_one({
             'id': str(uuid.uuid4()),
             'email': admin_email,
@@ -157,6 +163,8 @@ async def seed_admin():
             'created_at': datetime.now(timezone.utc).isoformat(),
         })
         logging.info(f"Seeded admin user {admin_email}")
+    except DuplicateKeyError:
+        logging.info(f"Admin user {admin_email} already exists (race); skipping seed")
     # If it exists we DO NOT reset the hash — the user may have rotated it via /change-password.
 
 
