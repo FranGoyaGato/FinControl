@@ -98,7 +98,7 @@ docker inspect caddy --format '{{range $k,$_ := .NetworkSettings.Networks}}{{$k}
 ### 3.2. Crear `.env.production`
 
 ```bash
-cp .env.example .env.production
+cp env.example .env.production
 nano .env.production
 ```
 
