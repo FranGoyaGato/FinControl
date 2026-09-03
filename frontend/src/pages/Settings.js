@@ -259,6 +259,10 @@ function SubcategoriesTab({ subcategories, categories, onCreate, onDelete, onEdi
     () => [...subcategories].sort((a, b) => a.name.localeCompare(b.name)),
     [subcategories]
   );
+  const sortedCategories = useMemo(
+    () => [...categories].sort((a, b) => a.name.localeCompare(b.name)),
+    [categories]
+  );
 
   const handleCreate = async () => {
     if (!newSubcategory.name || !newSubcategory.category_id) return;
@@ -279,7 +283,7 @@ function SubcategoriesTab({ subcategories, categories, onCreate, onDelete, onEdi
               <SelectValue placeholder="Categoría" />
             </SelectTrigger>
             <SelectContent>
-              {categories.map((cat) => (
+              {sortedCategories.map((cat) => (
                 <SelectItem key={cat.id} value={cat.id}>{cat.name}</SelectItem>
               ))}
             </SelectContent>
@@ -332,6 +336,11 @@ function SubcategoriesTab({ subcategories, categories, onCreate, onDelete, onEdi
 function RulesTab({ rules, categories, subcategories, onCreate, onDelete, onEdit, getCategoryName }) {
   const [newRule, setNewRule] = useState({ source: 'bank', contains: '', sign: '', category_id: '', subcategory_id: '', priority: 0 });
 
+  const sortedCategories = useMemo(
+    () => [...categories].sort((a, b) => a.name.localeCompare(b.name)),
+    [categories]
+  );
+
   const handleCreate = async () => {
     if (!newRule.contains || !newRule.category_id) return;
     await onCreate(newRule);
@@ -378,7 +387,7 @@ function RulesTab({ rules, categories, subcategories, onCreate, onDelete, onEdit
               <SelectValue placeholder="Categoría" />
             </SelectTrigger>
             <SelectContent>
-              {categories.map((cat) => (
+              {sortedCategories.map((cat) => (
                 <SelectItem key={cat.id} value={cat.id}>{cat.name}</SelectItem>
               ))}
             </SelectContent>
@@ -662,6 +671,11 @@ export default function Settings() {
       .sort((a, b) => a.name.localeCompare(b.name));
   }, [editingRule, subcategories]);
 
+  const sortedCategoriesForDialogs = useMemo(
+    () => [...categories].sort((a, b) => a.name.localeCompare(b.name)),
+    [categories]
+  );
+
   return (
     <div className="space-y-6">
       <div>
@@ -765,7 +779,7 @@ export default function Settings() {
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  {categories.map((cat) => (
+                  {sortedCategoriesForDialogs.map((cat) => (
                     <SelectItem key={cat.id} value={cat.id}>{cat.name}</SelectItem>
                   ))}
                 </SelectContent>
@@ -831,7 +845,7 @@ export default function Settings() {
                 >
                   <SelectTrigger data-testid="edit-rule-category"><SelectValue /></SelectTrigger>
                   <SelectContent>
-                    {categories.map((cat) => (
+                    {sortedCategoriesForDialogs.map((cat) => (
                       <SelectItem key={cat.id} value={cat.id}>{cat.name}</SelectItem>
                     ))}
                   </SelectContent>
